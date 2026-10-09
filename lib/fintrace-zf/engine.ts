@@ -4,7 +4,6 @@ import {
   CalculationTraceStep,
   ReconciliationSummary,
   SourceSystem,
-  TransactionType,
   TypedQuestionPlan,
   UserIdentity,
   VerifiedFinancialValue,

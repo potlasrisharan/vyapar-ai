@@ -148,25 +148,25 @@ function generateContextualFallback(messages: ChatMessage[]): { content: string;
   };
 }
 
-function buildDynamicBusinessContext(context?: any): string {
+function buildDynamicBusinessContext(context?: Record<string, unknown>): string {
   let prompt = BUSINESS_CONTEXT;
-  const docs = context?.uploadedDocuments || context?.uploadedInvoices || [];
-  const customInvoices = context?.customInvoices || [];
+  const docs = (context?.uploadedDocuments || context?.uploadedInvoices || []) as Array<Record<string, unknown>>;
+  const customInvoices = (context?.customInvoices || []) as Array<Record<string, unknown>>;
 
   if (docs.length > 0 || customInvoices.length > 0) {
     prompt += `\n\n--- USER-UPLOADED HISTORICAL INVOICES & DOCUMENTS ---\n`;
     prompt += `The business owner has uploaded the following ${docs.length} historical invoices/bills into the app:\n`;
 
-    docs.forEach((doc: any, index: number) => {
-      const ext = doc.extractedData || {};
+    docs.forEach((doc, index: number) => {
+      const ext = (doc.extractedData as Record<string, unknown>) || {};
       prompt += `${index + 1}. Document: "${doc.name || ext.invoiceNumber || 'Invoice'}"\n`;
       prompt += `   - Invoice Number: ${ext.invoiceNumber || doc.relatedId || 'N/A'}\n`;
       prompt += `   - Party / Customer / Vendor: ${ext.customer || ext.vendorName || 'N/A'}\n`;
       prompt += `   - Date: ${ext.date || ext.invoiceDate || 'N/A'}${ext.dueDate ? `, Due Date: ${ext.dueDate}` : ''}\n`;
-      prompt += `   - Amount: ₹${ext.total || ext.totalAmount || 0} (Tax: ₹${ext.taxAmount || ((ext.cgst || 0) + (ext.sgst || 0))})\n`;
+      prompt += `   - Amount: ₹${ext.total || ext.totalAmount || 0} (Tax: ${ext.taxAmount || ((Number(ext.cgst) || 0) + (Number(ext.sgst) || 0))})\n`;
       prompt += `   - Status: ${ext.paymentStatus || doc.status || 'completed'}\n`;
       if (ext.items && Array.isArray(ext.items) && ext.items.length > 0) {
-        prompt += `   - Items: ${ext.items.map((it: any) => `${it.description || it.name} (${it.quantity || 1}x @ ₹${it.unitPrice || it.price || 0})`).join(', ')}\n`;
+        prompt += `   - Items: ${(ext.items as Array<Record<string, unknown>>).map((it) => `${it.description || it.name} (${it.quantity || 1}x @ ₹${it.unitPrice || it.price || 0})`).join(', ')}\n`;
       }
     });
 
@@ -194,22 +194,46 @@ export async function POST(req: NextRequest) {
     const lastMessage = messages[messages.length - 1]?.content || "";
 
     // 1. Ingest client uploaded documents into rigid RAG database
-    const docs = context?.uploadedDocuments || context?.uploadedInvoices || [];
+    const docs = (context?.uploadedDocuments || context?.uploadedInvoices || []) as Array<Record<string, unknown>>;
     if (Array.isArray(docs)) {
-      docs.forEach((doc: any) => {
-        const ext = doc.extractedData || {};
-        rigidRagDatabase.ingestInvoice({
-          id: ext.invoiceNumber || doc.relatedId || doc.name,
-          customer: ext.customer || ext.vendorName,
-          date: ext.date || ext.invoiceDate || new Date().toISOString().slice(0, 10),
-          dueDate: ext.dueDate,
-          total: Number(ext.total || ext.totalAmount || 0),
-          subtotal: ext.subtotal ? Number(ext.subtotal) : undefined,
-          tax: ext.taxAmount ? Number(ext.taxAmount) : undefined,
-          status: ext.paymentStatus || doc.status || "recorded",
-          gstin: ext.gstin,
-          items: ext.items || [],
-        });
+      docs.forEach((doc) => {
+        const ext = (doc.extractedData as Record<string, unknown>) || {};
+        if (doc.type === 'profile' || ext.isBusinessProfile || ext.businessName || ext.ownerName) {
+          rigidRagDatabase.ingestBusinessProfile({
+            name: String(ext.businessName || ext.name || doc.name || 'Business'),
+            owner: String(ext.ownerName || ext.owner || 'Ram Sharma'),
+            city: String(ext.city || 'Kanpur'),
+            state: String(ext.state || 'Uttar Pradesh'),
+            gstin: ext.gstin ? String(ext.gstin) : undefined,
+            pan: ext.pan ? String(ext.pan) : undefined,
+            type: ext.type || ext.businessType ? String(ext.type || ext.businessType) : undefined,
+            bankAccount: ext.bankAccount ? String(ext.bankAccount) : undefined,
+            monthlyRevenue: Number(ext.monthlyRevenue || 0),
+            monthlyExpenses: Number(ext.monthlyExpenses || 0),
+            totalReceivables: Number(ext.totalReceivables || 0),
+          });
+        } else {
+          rigidRagDatabase.ingestInvoice({
+            id: String(ext.invoiceNumber || doc.relatedId || doc.name || 'INV-UP'),
+            customer: ext.customer || ext.customerName || ext.vendorName ? String(ext.customer || ext.customerName || ext.vendorName) : undefined,
+            vendor: ext.vendorName ? String(ext.vendorName) : undefined,
+            date: String(ext.date || ext.invoiceDate || new Date().toISOString().slice(0, 10)),
+            dueDate: ext.dueDate ? String(ext.dueDate) : undefined,
+            total: Number(ext.total || ext.totalAmount || 0),
+            subtotal: ext.subtotal ? Number(ext.subtotal) : undefined,
+            tax: ext.taxAmount ? Number(ext.taxAmount) : undefined,
+            status: String(ext.paymentStatus || doc.status || 'recorded'),
+            gstin: ext.gstin ? String(ext.gstin) : undefined,
+            items: Array.isArray(ext.items)
+              ? (ext.items as Array<Record<string, unknown>>).map((it) => ({
+                  description: String(it.description || it.name || 'Item'),
+                  quantity: Number(it.quantity || 1),
+                  unitPrice: Number(it.unitPrice || it.price || 0),
+                  total: Number(it.total || 0),
+                }))
+              : [],
+          });
+        }
       });
     }
 
@@ -253,7 +277,47 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Rigid RAG Retrieval
+    // 3. Check for Overdue Payments + Weekly Action Plan composite query
+    const isHindi = /कहा|क्या|कौन|बकाया|खर्च|बिजली|स्टॉक|नमस्ते|आज/i.test(lastMessage);
+    const isHinglish = /aaj|kya|kaun|bakaaya|bakaya|kharch|bijli|stock|karein|karo|batao/i.test(lastMessage);
+    const lang = isHindi ? 'hi' : isHinglish ? 'hinglish' : 'en';
+
+    const isOverdueAndWeeklyPlan =
+      /(overdue|pending|unpaid|bakaaya|bakaya).*(week|hafta|do|karein|action)|what.*(do|action).*this week|which payments are overdue|payments.*overdue/i.test(lastMessage);
+
+    if (isOverdueAndWeeklyPlan) {
+      const plan = rigidRagDatabase.getOverdueAndWeeklyPlan(lang);
+
+      if (process.env.SARVAM_CHAT_API_KEY || process.env.SARVAM_API_KEY) {
+        try {
+          const promptWithPlan = `${buildDynamicBusinessContext(context)}\n\n=== VERIFIED OVERDUE BREAKDOWN & ACTION PLAN ===\n${plan.content}\n================================================\nCRITICAL: Answer with this exact breakdown, action plan, and explicitly name the relied-on documents.`;
+          const reply = await sarvamChat(messages, promptWithPlan);
+          return NextResponse.json({
+            role: 'assistant',
+            content: reply,
+            provider: 'Sarvam AI (sarvam-105b-conversations)',
+            evidenceIds: plan.evidenceIds,
+            reliedDocuments: plan.reliedDocuments,
+            totalOverdue: plan.totalOverdue,
+            isGrounded: true,
+          });
+        } catch (sarvamErr) {
+          console.warn('Sarvam Chat API call failed for overdue plan, using deterministic plan:', sarvamErr);
+        }
+      }
+
+      return NextResponse.json({
+        role: 'assistant',
+        content: plan.content,
+        provider: 'VyaparAI Multi-Document Action Engine',
+        evidenceIds: plan.evidenceIds,
+        reliedDocuments: plan.reliedDocuments,
+        totalOverdue: plan.totalOverdue,
+        isGrounded: true,
+      });
+    }
+
+    // 4. Rigid RAG Retrieval
     const retrieval = rigidRagDatabase.retrieve(lastMessage);
 
     let dynamicContext = buildDynamicBusinessContext(context);
@@ -263,7 +327,7 @@ export async function POST(req: NextRequest) {
       dynamicContext += `\n\nSTRICT RAG GUARD: No verified records or uploaded invoices were found in the database matching this query. You MUST strictly reply: "This information is not present in the uploaded invoices or business records." Do not invent or estimate.`;
     }
 
-    // 3. Attempt Sarvam AI Indic LLM (using SARVAM_CHAT_API_KEY)
+    // 5. Attempt Sarvam AI Indic LLM (using SARVAM_CHAT_API_KEY)
     if (process.env.SARVAM_CHAT_API_KEY || process.env.SARVAM_API_KEY) {
       try {
         const reply = await sarvamChat(messages, dynamicContext);
@@ -279,10 +343,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Deterministic Rigid Fallback
-    const isHindi = /कहा|क्या|कौन|बकाया|खर्च|बिजली|स्टॉक|नमस्ते|आज/i.test(lastMessage);
-    const isHinglish = /aaj|kya|kaun|bakaaya|bakaya|kharch|bijli|stock|karein|karo|batao/i.test(lastMessage);
-
+    // 6. Deterministic Rigid Fallback
     if (retrieval.isGrounded && retrieval.matchedChunks.length > 0) {
       const topChunk = retrieval.matchedChunks[0].chunk;
       const content = isHindi

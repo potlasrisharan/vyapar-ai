@@ -66,3 +66,125 @@ test("payment reconciliation arithmetic updates invoice outstanding balances cor
   assert.equal(settledOutstanding, 0);
 });
 
+import { rigidRagDatabase, RigidRagDatabase } from "../lib/services";
+
+test("rigid RAG test database initializes with verified test invoices and business profile", () => {
+  const db = new RigidRagDatabase();
+  const chunks = db.getAllChunks();
+  assert.ok(chunks.length >= 5);
+
+  const bizChunk = chunks.find(c => c.category === "business_profile");
+  assert.ok(bizChunk);
+  assert.equal(bizChunk.metadata.party, "Sharma Electronics");
+  assert.equal(bizChunk.metadata.gstin, "09AAACS1420M1Z8");
+  assert.ok(bizChunk.content.includes("Kanpur"));
+
+  const inv801 = chunks.find(c => c.metadata.invoiceNumber === "INV-801");
+  assert.ok(inv801);
+  assert.equal(inv801.metadata.amount, 45000);
+  assert.equal(inv801.metadata.party, "Bajaj Electricals");
+  assert.ok(inv801.content.includes("Ceiling Fan"));
+});
+
+test("rigid RAG retrieves exact verified facts for known invoice and business queries", () => {
+  const res801 = rigidRagDatabase.retrieve("What are the items in invoice INV-801?");
+  assert.equal(res801.isGrounded, true);
+  assert.ok(res801.matchedChunks.length > 0);
+  assert.equal(res801.matchedChunks[0].chunk.metadata.invoiceNumber, "INV-801");
+  assert.ok(res801.groundedContext.includes("Bajaj Electricals"));
+  assert.ok(res801.groundedContext.includes("45000"));
+
+  const resHavells = rigidRagDatabase.retrieve("Tell me about Havells bill");
+  assert.equal(resHavells.isGrounded, true);
+  assert.equal(resHavells.matchedChunks[0].chunk.metadata.invoiceNumber, "INV-802");
+  assert.ok(resHavells.groundedContext.includes("Smart LED Surface Panel"));
+
+  const resGstin = rigidRagDatabase.retrieve("What is Sharma Electronics GSTIN?");
+  assert.equal(resGstin.isGrounded, true);
+  assert.ok(resGstin.groundedContext.includes("09AAACS1420M1Z8"));
+});
+
+test("rigid RAG rejects non-existent or hallucinated records with zero false-positives", () => {
+  const fakeInv = rigidRagDatabase.retrieve("Details on invoice INV-9999 for Apple iPhone purchase");
+  assert.equal(fakeInv.isGrounded, false);
+  assert.equal(fakeInv.groundedContext, "");
+  assert.equal(fakeInv.matchedChunks.length, 0);
+
+  const unrelated = rigidRagDatabase.retrieve("Who won the 2024 cricket world cup final?");
+  assert.equal(unrelated.isGrounded, false);
+  assert.equal(unrelated.groundedContext, "");
+});
+
+test("rigid RAG dynamically ingests uploaded invoices and enforces strict ground truth", () => {
+  rigidRagDatabase.ingestInvoice({
+    id: "INV-UPLOAD-77",
+    customer: "Anchor Electricals Pvt Ltd",
+    date: "2026-10-01",
+    dueDate: "2026-10-15",
+    total: 28500,
+    subtotal: 24152,
+    tax: 4348,
+    status: "paid",
+    gstin: "09AAACA9999Z1Z0",
+    items: [
+      { description: "Anchor Roma Modular Switches 6A", quantity: 150, unitPrice: 161, total: 24152 },
+    ],
+  });
+
+  const queryRes = rigidRagDatabase.retrieve("What was the quantity and price for Anchor Roma switches in INV-UPLOAD-77?");
+  assert.equal(queryRes.isGrounded, true);
+  assert.equal(queryRes.matchedChunks[0].chunk.metadata.invoiceNumber, "INV-UPLOAD-77");
+  assert.ok(queryRes.groundedContext.includes("28500"));
+  assert.ok(queryRes.groundedContext.includes("Modular Switches"));
+  assert.ok(queryRes.groundedContext.includes("150 units"));
+});
+
+test("copilot synthesizes overdue payments, weekly action plan, and explicitly names relied-on documents", () => {
+  // Ingest business profile and new monthly overdue bill
+  rigidRagDatabase.ingestBusinessProfile({
+    name: "Sharma Electronics Superstore",
+    owner: "Ramesh Sharma",
+    city: "Kanpur",
+    state: "Uttar Pradesh",
+    gstin: "09AAACS1420M1Z8",
+    pan: "AAACS1420M",
+    monthlyRevenue: 482000,
+    monthlyExpenses: 213000,
+    totalReceivables: 82000,
+  });
+
+  rigidRagDatabase.ingestInvoice({
+    id: "INV-MONTH-99",
+    customer: "Kalyan Enterprises Kanpur",
+    date: "2026-09-12",
+    dueDate: "2026-09-24",
+    total: 31000,
+    status: "overdue",
+    gstin: "09AAACK9999K1Z2",
+    items: [{ description: "OLED TV Wall Mounts", quantity: 10, unitPrice: 3100, total: 31000 }],
+  });
+
+  const planEn = rigidRagDatabase.getOverdueAndWeeklyPlan("en");
+  assert.ok(planEn.totalOverdue >= 145000);
+  assert.ok(planEn.content.includes("Overdue Payments Summary"));
+  assert.ok(planEn.content.includes("Weekly Action Plan"));
+  assert.ok(planEn.content.includes("Documents Relied On"));
+  assert.ok(planEn.content.includes("INV-1023"));
+  assert.ok(planEn.content.includes("INV-1042"));
+  assert.ok(planEn.content.includes("INV-MONTH-99"));
+  assert.ok(planEn.content.includes("EXP-6"));
+  assert.ok(planEn.reliedDocuments.some((d) => d.includes("INV-1023")));
+  assert.ok(planEn.reliedDocuments.some((d) => d.includes("EXP-6")));
+  assert.ok(planEn.evidenceIds.includes("CHUNK-INV-INV-1023"));
+
+  const planHi = rigidRagDatabase.getOverdueAndWeeklyPlan("hi");
+  assert.ok(planHi.content.includes("बकाया भुगतान"));
+  assert.ok(planHi.content.includes("कार्ययोजना"));
+  assert.ok(planHi.content.includes("संदर्भित दस्तावेज़"));
+
+  const planHinglish = rigidRagDatabase.getOverdueAndWeeklyPlan("hinglish");
+  assert.ok(planHinglish.content.includes("Action Plan for This Week"));
+  assert.ok(planHinglish.content.includes("Documents Relied On"));
+});
+
+

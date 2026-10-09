@@ -17,7 +17,7 @@ import type {
 
 export { businessService } from "@/lib/mock/business";
 export { assistantService } from "@/lib/mock/assistant";
-export { knowledgeService, POSTGRES_SCHEMA_SQL } from "@/lib/domain/knowledge";
+export { knowledgeService, POSTGRES_SCHEMA_SQL, rigidRagDatabase, RigidRagDatabase, type RagChunk, type RagRetrievalResult } from "@/lib/domain/knowledge";
 export { aiRouter } from "@/lib/domain/ai-router";
 export { eventBus } from "@/lib/domain/events";
 export { config } from "@/lib/config";

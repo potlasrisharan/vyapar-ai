@@ -1,6 +1,7 @@
 import type { AssistantService, Language, PromptId } from "@/lib/types";
 import { sleep } from "@/lib/utils/format";
 import { translate } from "@/lib/i18n";
+import { rigidRagDatabase } from "@/lib/domain/knowledge";
 export const promptKeys = {today:"promptToday",owes:"promptOwes",expenses:"promptExpenses",stock:"promptStock",summary:"promptSummary"} as const;
 const responses = {
  today:{en:"Based on your September records, I recommend three priorities:\n\n1. Follow up with ABC Traders for ₹35,000 — invoice INV-1023 is 12 days overdue.\n2. Reorder Dell 24-inch Monitor — 8 units remain, about 5 days at the demo velocity of 1.6 units/day. Consider 20 units.\n3. Review electricity costs — ₹24,500, up 24% from August. Compare meter readings and tariffs before deciding why.",hi:"सितंबर के रिकॉर्ड के आधार पर तीन प्राथमिकताएं हैं:\n\n1. ABC Traders से ₹35,000 के लिए संपर्क करें — INV-1023 12 दिन से बकाया है।\n2. Dell 24-inch Monitor का स्टॉक भरें — 8 यूनिट बाकी हैं, डेमो बिक्री दर 1.6 यूनिट/दिन पर लगभग 5 दिन। 20 यूनिट पर विचार करें।\n3. बिजली खर्च की समीक्षा करें — ₹24,500, अगस्त से 24% अधिक। कारण तय करने से पहले मीटर रीडिंग और दरों की तुलना करें।",hinglish:"September records ke hisaab se teen priorities hain:\n\n1. ABC Traders se ₹35,000 ke liye follow-up karein — INV-1023 12 din overdue hai.\n2. Dell 24-inch Monitor restock karein — 8 units bache hain, demo velocity 1.6 units/day par lagbhag 5 din. 20 units consider karein.\n3. Bijli expense review karein — ₹24,500, August se 24% zyada. Wajah decide karne se pehle meter readings aur tariffs compare karein."},
@@ -60,6 +61,22 @@ export const assistantService: AssistantService = {
     }
 
     await sleep(200);
+
+    const isOverdueAndWeeklyPlan =
+      /(overdue|pending|unpaid|bakaaya|bakaya).*(week|hafta|do|karein|action)|what.*(do|action).*this week|which payments are overdue|payments.*overdue/i.test(question);
+
+    if (isOverdueAndWeeklyPlan) {
+      const plan = rigidRagDatabase.getOverdueAndWeeklyPlan(language);
+      return {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: plan.content,
+        promptId: id,
+        evidenceIds: plan.evidenceIds,
+        createdAt: new Date().toISOString(),
+      };
+    }
+
     const fallbackText = id === "unknown" && hasUploadedDocs
       ? (language === "hi"
           ? "आपके द्वारा अपलोड किए गए बिलों के आधार पर मैं आपका बहीखाता देख सकता हूँ। कृपया किसी विशिष्ट बिल या ग्राहक का नाम पूछें।"

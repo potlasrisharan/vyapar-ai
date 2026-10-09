@@ -148,7 +148,8 @@ export function AssistantPage(){
           ) : (
             <div className="messages">
               {conversation.messages.map(m=>{
-                const displayText = m.role==="assistant" && m.promptId && m.promptId!=="unknown" && (promptKeys as Record<string, string>)[m.promptId] ? responseText(m.promptId,lang) : m.text;
+                const isCannedPrompt = m.role==="assistant" && m.promptId && m.promptId!=="unknown" && (!m.text || m.text === responseText(m.promptId, "en") || m.text === responseText(m.promptId, "hi") || m.text === responseText(m.promptId, "hinglish"));
+                const displayText = isCannedPrompt && (promptKeys as Record<string, string>)[m.promptId!] ? responseText(m.promptId!,lang) : m.text;
                 return (
                   <article className={`message ${m.role}`} key={m.id}>
                     <div className="message-label" style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%"}}>
@@ -169,8 +170,12 @@ export function AssistantPage(){
                         </button>
                       )}
                     </div>
-                    <div className="message-text">{displayText}</div>
-                    {m.evidenceIds.length>0&&<div className="message-evidence"><span>{t("sources")}</span>{m.evidenceIds.map(id=><button key={id} onClick={()=>open({kind:"evidence",id})}><FileText size={13}/>{data.evidence.find(e=>e.id===id)?.label}<ArrowUpRight size={12}/></button>)}</div>}
+                    <div className="message-text" style={{whiteSpace:"pre-wrap"}}>{displayText}</div>
+                    {m.evidenceIds.length>0&&<div className="message-evidence"><span>{t("sources")}</span>{m.evidenceIds.map(id=>{
+                      const ev = data.evidence.find(e=>e.id===id);
+                      const label = ev?.label || id.replace(/^CHUNK-INV-/, "Invoice: ").replace(/^CHUNK-BIZ-/, "Profile: ").replace(/^EVD-/, "");
+                      return <button key={id} onClick={()=>open({kind:"evidence",id})}><FileText size={13}/>{label}<ArrowUpRight size={12}/></button>;
+                    })}</div>}
                     {m.role==="assistant"&&<>
                       <small className="message-disclaimer">{t("mockResponse")}</small>
                       {m.promptId==="today"||m.promptId==="owes"?<Button onClick={()=>open({kind:"action",id:"INS-1"})}>{t("followup")}<ArrowUpRight size={14}/></Button>:null}

@@ -115,7 +115,7 @@ export interface PurchaseBill {
 export interface Document {
   id: string;
   name: string;
-  type: "invoice" | "purchase" | "expense" | "inventory" | "statement";
+  type: "invoice" | "purchase" | "expense" | "inventory" | "statement" | "profile";
   format: "PDF" | "JPG" | "PNG" | "CSV" | "XLSX";
   status: "completed" | "review";
   uploaded: string;
@@ -274,5 +274,5 @@ export interface BusinessService {
 }
 
 export interface AssistantService {
-  ask(question: string, language: Language, promptId?: PromptId): Promise<Message>;
+  ask(question: string, language: Language, promptId?: PromptId, context?: Record<string, unknown>): Promise<Message>;
 }

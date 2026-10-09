@@ -64,7 +64,7 @@ export interface IInsightService {
 }
 
 export interface IAssistantService {
-  ask(question: string, language: Language, promptId?: PromptId): Promise<Message>;
+  ask(question: string, language: Language, promptId?: PromptId, context?: Record<string, unknown>): Promise<Message>;
 }
 
 export interface IActionService {
