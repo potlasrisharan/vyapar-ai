@@ -874,11 +874,44 @@ CREATE TABLE IF NOT EXISTS background_jobs (
     completed_at TIMESTAMP WITH TIME ZONE
 );
 
+-- 16. Payment Promises (Udhaar Khata)
+CREATE TABLE IF NOT EXISTS payment_promises (
+    id VARCHAR(64) PRIMARY KEY,
+    business_id VARCHAR(64) NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+    customer_id VARCHAR(64) NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    invoice_id VARCHAR(64) REFERENCES invoices(id) ON DELETE SET NULL,
+    expected_amount NUMERIC(12, 2) NOT NULL,
+    expected_date DATE NOT NULL,
+    status VARCHAR(32) DEFAULT 'pending',
+    customer_response TEXT,
+    note TEXT,
+    recorded_by VARCHAR(255) DEFAULT 'Owner (Ramesh Sharma)',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 17. Collection Follow-ups (Udhaar Khata)
+CREATE TABLE IF NOT EXISTS collection_followups (
+    id VARCHAR(64) PRIMARY KEY,
+    business_id VARCHAR(64) NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+    customer_id VARCHAR(64) NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    channel VARCHAR(32) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    contact_notes TEXT,
+    scheduled_date DATE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    recorded_by VARCHAR(255) DEFAULT 'Owner (Ramesh Sharma)',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for high-throughput queries
 CREATE INDEX IF NOT EXISTS idx_invoices_biz_due ON invoices(business_id, due_date);
 CREATE INDEX IF NOT EXISTS idx_customers_biz ON customers(business_id);
 CREATE INDEX IF NOT EXISTS idx_products_biz_stock ON products(business_id, stock);
 CREATE INDEX IF NOT EXISTS idx_knowledge_rels ON knowledge_relationships(business_id, source_id, target_id, type);
 CREATE INDEX IF NOT EXISTS idx_audit_biz_time ON audit_logs(business_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_promises_biz_cust ON payment_promises(business_id, customer_id);
+CREATE INDEX IF NOT EXISTS idx_promises_biz_date ON payment_promises(business_id, expected_date);
+CREATE INDEX IF NOT EXISTS idx_followups_biz_cust ON collection_followups(business_id, customer_id);
 `;
 

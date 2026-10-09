@@ -255,6 +255,101 @@ export interface BusinessData {
   evidence: Evidence[];
 }
 
+export interface PaymentPromise {
+  id: string;
+  businessId: string;
+  customerId: string;
+  invoiceId?: string;
+  expectedAmount: number;
+  expectedDate: string;
+  status: "pending" | "fulfilled" | "missed" | "cancelled";
+  customerResponse?: string;
+  note?: string;
+  recordedBy?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CollectionFollowup {
+  id: string;
+  businessId: string;
+  customerId: string;
+  channel: "call" | "whatsapp" | "visit" | "in_app";
+  status: "scheduled" | "attempted" | "contacted" | "completed" | "no_response";
+  contactNotes?: string;
+  scheduledDate?: string;
+  completedAt?: string;
+  recordedBy?: string;
+  createdAt: string;
+}
+
+export type PriorityBand = "urgent" | "high" | "medium" | "low";
+
+export interface PriorityBreakdown {
+  score: number;
+  band: PriorityBand;
+  overdueScore: number;
+  exposureScore: number;
+  promiseScore: number;
+  riskTrendScore: number;
+  daysOverdue: number;
+  outstandingExposure: number;
+  missedPromisesCount: number;
+  pendingPromisesCount: number;
+  explanation: Localized;
+}
+
+export interface ReliabilityRating {
+  stars: number;
+  score: number;
+  isInsufficientHistory: boolean;
+  eligibleTransactionsCount: number;
+  timelinessScore: number;
+  delayScore: number;
+  promiseScore: number;
+  consistencyScore: number;
+  onTimePaymentRate: number;
+  amountWeightedOnTimeRate: number;
+  averageDelayDays: number;
+  brokenPromisesCount: number;
+  evaluationPeriod: string;
+  explanation: Localized;
+}
+
+export interface UdhaarCustomerSummary {
+  customer: Customer;
+  totalOutstanding: number;
+  overdueBalance: number;
+  upcomingBalance: number;
+  unpaidInvoicesCount: number;
+  oldestUnpaidInvoice?: Invoice;
+  earliestDueDate?: string;
+  daysOverdue: number;
+  lastPayment?: Payment;
+  totalPaidHistorical: number;
+  invoices: Invoice[];
+  payments: Payment[];
+  promises: PaymentPromise[];
+  followups: CollectionFollowup[];
+  priority: PriorityBreakdown;
+  reliability: ReliabilityRating;
+  nextRecommendedAction: {
+    type: "call" | "whatsapp" | "promise" | "record_payment" | "monitor";
+    label: Localized;
+    reason: Localized;
+  };
+}
+
+export interface UdhaarDashboardSummary {
+  totalOutstanding: number;
+  totalOverdue: number;
+  dueInSevenDays: number;
+  totalCollected: number;
+  customersWithBalanceCount: number;
+  overdueCustomersCount: number;
+  urgentFollowupCount: number;
+}
+
 export interface LocalState {
   language: Language;
   theme?: "dark" | "light";
@@ -268,6 +363,8 @@ export interface LocalState {
   customCustomers?: Customer[];
   customVendors?: Vendor[];
   customProducts?: Product[];
+  paymentPromises?: PaymentPromise[];
+  collectionFollowups?: CollectionFollowup[];
 }
 
 export interface BusinessService {

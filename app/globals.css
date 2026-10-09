@@ -1339,6 +1339,17 @@ p { color: var(--secondary); }
   margin-bottom: 24px;
 }
 
+.simple-actions-grid.two-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .simple-actions-grid.two-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
 .simple-card-btn {
   display: flex;
   align-items: center;
@@ -1359,80 +1370,129 @@ p { color: var(--secondary); }
   box-shadow: 0 6px 16px -2px rgba(13, 112, 99, 0.08);
 }
 
-.simple-card-btn.emerald {
-  border-left: 4px solid #10b981;
-}
-.simple-card-btn.emerald:hover {
-  border-color: #10b981;
-}
-
-.simple-card-btn.blue {
-  border-left: 4px solid #3b82f6;
-}
-.simple-card-btn.blue:hover {
-  border-color: #3b82f6;
+.simple-card-btn.highlight-hero {
+  padding: 20px 22px;
+  min-height: 92px;
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
 }
 
-.simple-card-btn.amber {
-  border-left: 4px solid #f59e0b;
+.simple-card-btn.highlight-hero.amber {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.09) 0%, rgba(245, 158, 11, 0.03) 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 4px 14px -3px rgba(245, 158, 11, 0.12);
 }
-.simple-card-btn.amber:hover {
+
+.simple-card-btn.highlight-hero.amber:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(245, 158, 11, 0.05) 100%);
   border-color: #f59e0b;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px -4px rgba(245, 158, 11, 0.22);
 }
 
-.simple-card-btn.purple {
-  border-left: 4px solid #8b5cf6;
+.simple-card-btn.highlight-hero.purple {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.09) 0%, rgba(139, 92, 246, 0.03) 100%);
+  border: 1.5px solid rgba(139, 92, 246, 0.35);
+  box-shadow: 0 4px 14px -3px rgba(139, 92, 246, 0.12);
 }
-.simple-card-btn.purple:hover {
+
+.simple-card-btn.highlight-hero.purple:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0.05) 100%);
   border-color: #8b5cf6;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px -4px rgba(139, 92, 246, 0.22);
+}
+
+.simple-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.03em;
+}
+
+.hero-pill.amber-pill {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+.hero-pill.purple-pill {
+  background: rgba(139, 92, 246, 0.16);
+  color: #6d28d9;
+}
+
+.simple-card-arrow {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  transition: transform 180ms ease;
+  flex-shrink: 0;
+}
+
+.simple-card-btn.amber .simple-card-arrow {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.simple-card-btn.purple .simple-card-arrow {
+  color: #7c3aed;
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.simple-card-btn:hover .simple-card-arrow {
+  transform: translateX(3px);
 }
 
 .simple-card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.simple-card-btn.emerald .simple-card-icon {
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
-}
-
-.simple-card-btn.blue .simple-card-icon {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
-}
-
 .simple-card-btn.amber .simple-card-icon {
-  background: rgba(245, 158, 11, 0.12);
+  background: rgba(245, 158, 11, 0.14);
   color: #d97706;
 }
 
 .simple-card-btn.purple .simple-card-icon {
-  background: rgba(139, 92, 246, 0.12);
+  background: rgba(139, 92, 246, 0.14);
   color: #7c3aed;
 }
 
 .simple-card-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
 }
 
 .simple-card-info strong {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
   line-height: 1.25;
 }
 
 .simple-card-info small {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--secondary);
   line-height: 1.35;
 }

@@ -1,10 +1,10 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { BusinessData, Insight, Language, LocalState, InsightStatus, Document, Conversation, Payment, Invoice, Customer, Product } from "@/lib/types";
+import type { BusinessData, Insight, Language, LocalState, InsightStatus, Document, Conversation, Payment, Invoice, Customer, Product, PaymentPromise, CollectionFollowup } from "@/lib/types";
 import { translate, type TranslationKey } from "@/lib/i18n";
 import { businessService, auditService, eventBus } from "@/lib/services";
-type Panel = {kind:"invoice"|"customer"|"vendor"|"product"|"document"|"evidence"|"action";id:string}|{kind:"actions"|"search"|"more"|"help"|"reset"|"createInvoice"|"createCustomer"|"createProduct"}|{kind:"recordPayment";invoiceId?:string};
-const initial:LocalState={language:"en",theme:"dark",insightStatuses:{},actions:[],uploadedDocuments:[],conversations:[],customPayments:[],customInvoices:[],customCustomers:[],customVendors:[],customProducts:[]};
+type Panel = {kind:"invoice"|"customer"|"vendor"|"product"|"document"|"evidence"|"action";id:string}|{kind:"actions"|"search"|"more"|"help"|"reset"|"createInvoice"|"createCustomer"|"createProduct"}|{kind:"recordPayment";invoiceId?:string}|{kind:"udhaarCustomer";customerId:string}|{kind:"recordPromise";customerId:string}|{kind:"recordFollowup";customerId:string};
+const initial:LocalState={language:"en",theme:"dark",insightStatuses:{},actions:[],uploadedDocuments:[],conversations:[],customPayments:[],customInvoices:[],customCustomers:[],customVendors:[],customProducts:[],paymentPromises:[],collectionFollowups:[]};
 const storageKey="vyaparai-demo-v1";
 interface AppContextValue {
   data:BusinessData|null;
@@ -30,6 +30,9 @@ interface AppContextValue {
   createInvoice:(i:Omit<Invoice,"id">&{id?:string})=>void;
   createCustomer:(c:Omit<Customer,"id">&{id?:string})=>void;
   createProduct:(p:Omit<Product,"id">&{id?:string})=>void;
+  recordPaymentPromise:(p:Omit<PaymentPromise,"id"|"createdAt">&{id?:string})=>void;
+  recordFollowup:(f:Omit<CollectionFollowup,"id"|"createdAt">&{id?:string})=>void;
+  updatePromiseStatus:(id:string,status:"fulfilled"|"missed"|"cancelled")=>void;
   reset:()=>void;
   demoState:"normal"|"loading"|"error"|"empty";
   setDemoState:(s:"normal"|"loading"|"error"|"empty")=>void;
@@ -85,6 +88,27 @@ export function AppProvider({children}:{children:ReactNode}){
   void auditService.log({businessId:"BIZ-1",action:"ProductCreated",actor:"ShopOwner",entityType:"product",entityId:newProd.id,details:`Inventory SKU ${newProd.sku} (${newProd.name}) registered`});
  },[local.customProducts]);
 
+ const recordPaymentPromise=useCallback((p:Omit<PaymentPromise,"id"|"createdAt">&{id?:string})=>{
+  const newPromise:PaymentPromise={...p,id:p.id||`PRM-${Date.now().toString().slice(-6)}`,createdAt:new Date().toISOString()};
+  setLocal(s=>({...s,paymentPromises:[newPromise,...(s.paymentPromises??[])]}));
+  setToast("promiseRecorded");
+  void eventBus.emit({type:"PaymentPromiseRecorded",businessId:newPromise.businessId||"BIZ-1",payload:{customerId:newPromise.customerId,amount:newPromise.expectedAmount,date:newPromise.expectedDate}});
+  void auditService.log({businessId:newPromise.businessId||"BIZ-1",action:"PaymentPromiseRecorded",actor:newPromise.recordedBy||"ShopOwner",entityType:"payment_promise",entityId:newPromise.id,details:`Payment promise of ₹${newPromise.expectedAmount.toLocaleString("en-IN")} recorded for ${newPromise.expectedDate} by customer ${newPromise.customerId}`});
+ },[]);
+
+ const recordFollowup=useCallback((f:Omit<CollectionFollowup,"id"|"createdAt">&{id?:string})=>{
+  const newFollowup:CollectionFollowup={...f,id:f.id||`FOL-${Date.now().toString().slice(-6)}`,createdAt:new Date().toISOString()};
+  setLocal(s=>({...s,collectionFollowups:[newFollowup,...(s.collectionFollowups??[])]}));
+  setToast("followupRecorded");
+  void auditService.log({businessId:newFollowup.businessId||"BIZ-1",action:"CollectionFollowupLogged",actor:newFollowup.recordedBy||"ShopOwner",entityType:"collection_followup",entityId:newFollowup.id,details:`${newFollowup.channel.toUpperCase()} follow-up (${newFollowup.status}) recorded for customer ${newFollowup.customerId}`});
+ },[]);
+
+ const updatePromiseStatus=useCallback((id:string,status:"fulfilled"|"missed"|"cancelled")=>{
+  setLocal(s=>({...s,paymentPromises:(s.paymentPromises??[]).map(p=>p.id===id?{...p,status,updatedAt:new Date().toISOString()}:p)}));
+  setToast("saved");
+  void auditService.log({businessId:"BIZ-1",action:"PaymentPromiseStatusUpdated",actor:"ShopOwner",entityType:"payment_promise",entityId:id,details:`Payment promise ${id} marked as ${status}`});
+ },[]);
+
  const value:AppContextValue={
   data:mergedData,local,t,lang:local.language,
   setLanguage:language=>setLocal(s=>({...s,language})),
@@ -99,6 +123,7 @@ export function AppProvider({children}:{children:ReactNode}){
   addDocument:doc=>setLocal(s=>({...s,uploadedDocuments:[doc,...s.uploadedDocuments]})),
   saveConversation:c=>setLocal(s=>({...s,conversations:[c,...s.conversations.filter(v=>v.id!==c.id)]})),
   recordPayment,createInvoice,createCustomer,createProduct,
+  recordPaymentPromise,recordFollowup,updatePromiseStatus,
   reset:()=>{setLocal({...initial,language:local.language});setDemoState("normal");setPanel(null);setToast("resetDone");},
   demoState,setDemoState,reload
  };
