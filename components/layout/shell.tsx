@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CircleHelp, CreditCard, FileText, LayoutGrid, Users, Truck, Package, Receipt, Lightbulb, MessageSquare, Settings, Search, ChevronDown, ArrowUpRight, MoreHorizontal, X, Building2, CheckCircle2, BookOpen } from "lucide-react";
+import { Bell, CircleHelp, CreditCard, FileText, LayoutGrid, Users, Truck, Package, Receipt, Lightbulb, MessageSquare, Settings, Search, ChevronDown, ArrowUpRight, MoreHorizontal, X, Building2, CheckCircle2, BookOpen, Landmark } from "lucide-react";
 import { useApp } from "@/components/app-provider";
 import { languages, type TranslationKey } from "@/lib/i18n";
 import type { Route, Language } from "@/lib/types";
@@ -35,6 +35,7 @@ export const navCategories: NavCategory[] = [
     label: "operations",
     items: [
       { route: "udhaar-khata", icon: BookOpen },
+      { route: "banking", icon: Landmark },
       { route: "customers", icon: Users },
       { route: "vendors", icon: Truck },
       { route: "inventory", icon: Package },

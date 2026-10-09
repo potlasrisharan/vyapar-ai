@@ -1,6 +1,6 @@
 export type Language = "en" | "hi" | "hinglish";
 export type Localized = Record<Language, string>;
-export type Route = "overview" | "documents" | "invoices" | "payments" | "customers" | "vendors" | "inventory" | "expenses" | "insights" | "assistant" | "settings" | "udhaar-khata";
+export type Route = "overview" | "documents" | "invoices" | "payments" | "customers" | "vendors" | "inventory" | "expenses" | "insights" | "assistant" | "settings" | "udhaar-khata" | "banking";
 
 export interface Business {
   id: string;
@@ -375,4 +375,66 @@ export interface BusinessService {
 
 export interface AssistantService {
   ask(question: string, language: Language, promptId?: PromptId, context?: Record<string, unknown>): Promise<Message>;
+}
+
+export interface BankingProductVerification {
+  isVerified: boolean;
+  sourceUrl: string;
+  sourceName: string;
+  lastVerifiedDate: string;
+  verifiedDetails: string[];
+  unverifiedDetails?: string[];
+}
+
+export interface CurrentAccountOption {
+  id: string;
+  bankName: string;
+  accountName: string;
+  mabRequirement: string;
+  mabAmount: number;
+  openingCharges: string;
+  cashDepositLimit: string;
+  digitalTxnTerms: string;
+  requiredDocuments: string[];
+  openingMode: "Online & Branch" | "Branch Only" | "Instant Digital";
+  suitableFor: string[];
+  tradeoffs: {
+    pros: string[];
+    cons: string[];
+  };
+  verification: BankingProductVerification;
+}
+
+export interface BusinessCreditCardOption {
+  id: string;
+  bankName: string;
+  cardName: string;
+  joiningFee: number;
+  annualFee: number;
+  feeWaiverCondition: string;
+  rewardRate: string;
+  rewardCategories: string[];
+  exclusionsAndCaps: string[];
+  fuelSurchargeWaiver: string;
+  eligibilityCriteria: string;
+  estimatedAnnualValue?: string;
+  tradeoffs: {
+    pros: string[];
+    cons: string[];
+  };
+  verification: BankingProductVerification;
+}
+
+export interface UpiOnboardingGuide {
+  id: string;
+  category: "Merchant QR" | "P2P vs P2M" | "Bank Account Linking" | "Troubleshooting";
+  title: Localized;
+  summary: Localized;
+  steps: Localized[];
+  limitsAndCharges: Localized;
+  officialSource: {
+    title: string;
+    url: string;
+    lastChecked: string;
+  };
 }

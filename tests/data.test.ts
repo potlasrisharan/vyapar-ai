@@ -395,4 +395,99 @@ test("promise and collection followup status transitions function correctly", ()
   assert.equal(followup.customerId, "CUS-1001");
 });
 
+import {
+  matchCurrentAccounts,
+  matchCreditCards,
+  generateVerifiedBankingResponse,
+  VERIFIED_CURRENT_ACCOUNTS,
+  VERIFIED_CREDIT_CARDS,
+  VERIFIED_UPI_GUIDES,
+  LAST_VERIFIED_DATE,
+} from "../lib/domain/banking-agent";
+
+test("banking agent verified knowledge integrity and official source citations", () => {
+  assert.equal(LAST_VERIFIED_DATE, "2026-10-01");
+  assert.ok(VERIFIED_CURRENT_ACCOUNTS.length >= 3);
+  assert.ok(VERIFIED_CREDIT_CARDS.length >= 3);
+  assert.ok(VERIFIED_UPI_GUIDES.length >= 3);
+
+  // All current accounts have valid official bank URLs and verified details
+  for (const acc of VERIFIED_CURRENT_ACCOUNTS) {
+    assert.ok(acc.verification.isVerified);
+    assert.ok(acc.verification.sourceUrl.startsWith("https://"));
+    assert.equal(acc.verification.lastVerifiedDate, "2026-10-01");
+    assert.ok(acc.verification.verifiedDetails.length > 0);
+    assert.ok(acc.mabAmount >= 0);
+  }
+
+  // All credit cards have valid MITC source URLs and annual fee details
+  for (const card of VERIFIED_CREDIT_CARDS) {
+    assert.ok(card.verification.isVerified);
+    assert.ok(card.verification.sourceUrl.startsWith("https://"));
+    assert.equal(card.verification.lastVerifiedDate, "2026-10-01");
+    assert.ok(card.verification.verifiedDetails.length > 0);
+    assert.ok(card.annualFee >= 0);
+  }
+
+  // UPI guides cite official documentation (NPCI / RBI)
+  for (const guide of VERIFIED_UPI_GUIDES) {
+    assert.ok(guide.officialSource.url.startsWith("https://"));
+    assert.ok(guide.steps.length >= 3);
+  }
+});
+
+test("banking current account matching respects budget, cash deposit, and KYC criteria", () => {
+  // Low MAB preference should rank SBI Regular (MAB 10000) at or near the top
+  const lowMabResults = matchCurrentAccounts({ preferLowMab: true, businessType: "proprietorship" });
+  assert.equal(lowMabResults[0].id, "sbi-regular-ca");
+  assert.equal(lowMabResults[0].mabAmount, 10000);
+
+  // High cash deposit should elevate accounts with dynamic multi-tier cash allowances
+  const highCashResults = matchCurrentAccounts({ expectedCashDeposit: 250000 });
+  assert.equal(highCashResults[0].id, "hdfc-biz-smartup");
+
+  // Instant digital / Video KYC preference should elevate digital-first accounts
+  const digitalResults = matchCurrentAccounts({ needsVideoKyc: true });
+  assert.equal(digitalResults[0].id, "icici-business-advantage");
+});
+
+test("business credit card recommendation engine accurately prioritizes spend waivers and categories", () => {
+  // Low fee preference prioritizes HDFC Business MoneyBack (₹500 fee)
+  const lowFeeCards = matchCreditCards({ preferLowFee: true, monthlySpend: 10000 });
+  assert.equal(lowFeeCards[0].id, "hdfc-biz-moneyback");
+
+  // Advertising spend priority prioritizes Axis Business Supreme
+  const adCards = matchCreditCards({ primaryCategory: "advertising", monthlySpend: 50000 });
+  assert.equal(adCards[0].id, "axis-business-supreme");
+
+  // Travel category prioritizes ICICI Coral Business
+  const travelCards = matchCreditCards({ primaryCategory: "travel", monthlySpend: 30000 });
+  assert.equal(travelCards[0].id, "icici-coral-business");
+});
+
+test("conversational banking response enforces security rules and verified source citations across all languages", () => {
+  const queryEn = "How do I setup UPI QR for my retail store?";
+  const resEn = generateVerifiedBankingResponse(queryEn, "en");
+  assert.equal(resEn.category, "upi");
+  assert.ok(resEn.reply.includes("0% MDR"));
+  // Critical NPCI security invariant: NEVER enter UPI PIN to receive money
+  assert.ok(resEn.reply.includes("Never enter your secret UPI PIN to receive money"));
+  assert.ok(resEn.sources.length >= 2);
+  assert.ok(resEn.sources[0].url.startsWith("https://"));
+
+  const queryHi = "दुकान के लिए यूपीआई क्यूआर कैसे शुरू करें?";
+  const resHi = generateVerifiedBankingResponse(queryHi, "hi");
+  assert.equal(resHi.category, "upi");
+  assert.ok(resHi.reply.includes("0% शुल्क"));
+  assert.ok(resHi.reply.includes("यूपीआई पिन दर्ज न करें"));
+
+  const queryHinglish = "Shop ke liye Current account kaun sa open karein?";
+  const resHinglish = generateVerifiedBankingResponse(queryHinglish, "hinglish");
+  assert.equal(resHinglish.category, "current_account");
+  assert.ok(resHinglish.reply.includes("SBI"));
+  assert.ok(resHinglish.reply.includes("HDFC"));
+  assert.ok(resHinglish.reply.includes("MAB"));
+});
+
+
 

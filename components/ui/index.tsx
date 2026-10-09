@@ -1,11 +1,11 @@
 "use client";
 import { ArrowDown, ArrowUpRight, Check, ChevronRight, Circle, Inbox, Search, X, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
 import { useApp } from "@/components/app-provider";
 import type { TranslationKey } from "@/lib/i18n";
 export function Button({children,variant="secondary",className="",...props}:ButtonHTMLAttributes<HTMLButtonElement>&{variant?:"primary"|"secondary"|"ghost"|"danger"}){return <button className={`button ${variant} ${className}`} {...props}>{children}</button>;}
 export function IconButton({icon:Icon,label,...props}:ButtonHTMLAttributes<HTMLButtonElement>&{icon:LucideIcon;label:string}){return <button className="icon-button" title={label} aria-label={label} {...props}><Icon size={19}/></button>;}
-export function Card({children,className=""}:{children:ReactNode;className?:string}){return <section className={`card ${className}`}>{children}</section>;}
+export function Card({children,className="",style,onClick}:{children:ReactNode;className?:string;style?:CSSProperties;onClick?:()=>void}){return <section className={`card ${className}`} style={style} onClick={onClick}>{children}</section>;}
 export function PageHeading({title,subtitle,children}:{title:string;subtitle:string;children?:ReactNode}){return <div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div>{children&&<div className="heading-actions">{children}</div>}</div>;}
 export function Badge({status,children}:{status:string;children?:ReactNode}){const {t}=useApp();const good=["paid","inStock","completed","active","handled"].includes(status);return <span className={`badge status-${status}`}>{good?<Check size={12}/>:<Circle size={6} fill="currentColor"/>}{children??t(status as TranslationKey)}</span>;}
 export function MetricCard({label,value,detail,trend,icon:Icon}:{label:string;value:ReactNode;detail?:string;trend?:string;icon?:LucideIcon}){return <div className="metric"><div className="metric-label">{label}{Icon&&<Icon size={16}/>}</div><strong>{value}</strong><div className="metric-detail">{trend&&<span className="trend"><ArrowUpRight size={13}/>{trend}</span>}{detail}</div></div>;}

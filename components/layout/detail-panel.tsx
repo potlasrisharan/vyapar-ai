@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowUpRight, CheckCircle2, FileText, Package, Plus, Search } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, FileText, Package, Plus, Search, Pencil, Trash2, Star, AlertTriangle } from "lucide-react";
 import { useApp } from "@/components/app-provider";
 import { Badge, Button, Card, DataTable, Drawer, EmptyState, FieldPair, SearchField } from "@/components/ui";
 import { navItems,routeHref } from "./shell";
 import { customerSummary } from "@/lib/mock/customers";
+import { calculateVendorRating } from "@/lib/mock/business";
 import { invoiceStatus, outstanding, paidAmount } from "@/lib/mock/invoices";
 import { stockStatus } from "@/lib/mock/inventory";
 import { date,daysBetween,money } from "@/lib/utils/format";
@@ -28,9 +29,11 @@ export function DetailPanel(){const app=useApp();const {data,panel,close,t,lang,
  }else if(panel.kind==="customer"){
  const c=data.customers.find(c=>c.id===panel.id);if(!c)return null;title=t("customerDetails");const s=customerSummary(c.id);content=<><h2>{c.name}</h2><p className="muted">{c.city}</p><div className="detail-metrics"><FieldPair label={t("totalPurchases")}>{money(s.purchases)}</FieldPair><FieldPair label={t("outstanding")}>{money(s.outstanding)}</FieldPair></div><FieldPair label={t("contact")}>{c.contact}</FieldPair><FieldPair label={t("phone")}>{c.phone}</FieldPair>{c.id==="CUS-1001"&&<div className="detail-insight">{t("largestOutstanding")}</div>}<h3>{t("purchaseHistory")}</h3>{s.invoices.length?s.invoices.map(i=>{const out=outstanding(i);return <button className="list-row" key={i.id} onClick={()=>open({kind:"invoice",id:i.id})}><span>{i.id}<small>{date(i.date,lang)} · {out>0?`₹${out.toLocaleString("en-IN")} due`:"Paid"}</small></span><span><strong>{money(i.total)}</strong><Badge status={invoiceStatus(i)}/></span><ArrowUpRight size={14}/></button>}):<p>{t("noHistory")}</p>}<h3>{t("paymentHistory")}</h3>{s.payments.length?s.payments.map(p=><div className="list-row" key={p.id}><span>{p.id}<small>{p.invoiceId} · {date(p.date,lang)}</small></span><strong>{money(p.amount)}</strong></div>):<p className="muted">{t("noPayments")}</p>}</>;
  }else if(panel.kind==="vendor"){
- const v=data.vendors.find(v=>v.id===panel.id);if(!v)return null;title=t("vendorDetails");const bills=data.purchaseBills.filter(b=>b.vendorId===v.id);content=<><h2>{v.name}</h2><p className="muted">{v.city}</p><div className="detail-metrics"><FieldPair label={t("totalPurchases")}>{money(bills.reduce((s,b)=>s+b.total,0))}</FieldPair><FieldPair label={t("outstanding")}>{money(bills.reduce((s,b)=>s+b.total-b.paid,0))}</FieldPair></div><h3>{t("purchaseBills")}</h3>{bills.length?bills.map(b=><div className="list-row" key={b.id}><span>{b.id}<small>{date(b.date,lang)}</small></span><span><strong>{money(b.total)}</strong><small>{t("paid")}: {money(b.paid)}</small></span></div>):<p>{t("noBills")}</p>}<h3>{t("products")}</h3>{data.products.filter(p=>p.vendorId===v.id).map(p=><button key={p.id} className="list-row" onClick={()=>open({kind:"product",id:p.id})}><span>{p.name}</span><ArrowUpRight size={14}/></button>)}</>;
+ const v=data.vendors.find(v=>v.id===panel.id);if(!v)return null;title=t("vendorDetails");const bills=data.purchaseBills.filter(b=>b.vendorId===v.id);const vRating=calculateVendorRating(v.id,data);content=<><h2>{v.name}</h2><p className="muted">{v.city}</p><div style={{background:"var(--surface-subtle,#f8fafc)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 14px",margin:"10px 0"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:6}}><Star size={16} fill="#eab308" color="#eab308"/><strong style={{fontSize:"1.1rem"}}>{vRating.stars.toFixed(1)} / 5.0</strong></div><Badge status="completed">{vRating.badge[lang]}</Badge></div><div className="field-grid" style={{marginBottom:0}}><FieldPair label="Settlement rate">{vRating.settlementRate}%</FieldPair><FieldPair label="Rating score">{vRating.score} / 100</FieldPair><FieldPair label="Products">{vRating.productsCount}</FieldPair></div></div><div className="detail-metrics"><FieldPair label={t("totalPurchases")}>{money(bills.reduce((s,b)=>s+b.total,0))}</FieldPair><FieldPair label={t("outstanding")}>{money(bills.reduce((s,b)=>s+b.total-b.paid,0))}</FieldPair></div><h3>{t("purchaseBills")}</h3>{bills.length?bills.map(b=><div className="list-row" key={b.id}><span>{b.id}<small>{date(b.date,lang)}</small></span><span><strong>{money(b.total)}</strong><small>{t("paid")}: {money(b.paid)}</small></span></div>):<p>{t("noBills")}</p>}<h3>{t("products")}</h3>{data.products.filter(p=>p.vendorId===v.id).map(p=><button key={p.id} className="list-row" onClick={()=>open({kind:"product",id:p.id})}><span>{p.name}</span><ArrowUpRight size={14}/></button>)}</>;
  }else if(panel.kind==="product"){
- const p=data.products.find(p=>p.id===panel.id);if(!p)return null;title=t("productDetails");const insight=data.insights.find(i=>i.targetId===p.id)??{...data.insights[1],id:`STOCK-${p.id}`,targetId:p.id,title:{en:`Restock ${p.name}`,hi:`${p.name} का स्टॉक भरें`,hinglish:`${p.name} restock karein`},summary:{en:p.sku,hi:p.sku,hinglish:p.sku},recommendation:{en:`Review a purchase of ${Math.max(0,p.reorderLevel*2-p.stock)} units.`,hi:`${Math.max(0,p.reorderLevel*2-p.stock)} यूनिट की खरीद पर विचार करें।`,hinglish:`${Math.max(0,p.reorderLevel*2-p.stock)} units ki purchase review karein.`}};content=<><span className="product-icon large"><Package size={30}/></span><h2>{p.name}</h2><p className="mono muted">{p.sku}</p><Badge status={stockStatus(p)}/><div className="field-grid"><FieldPair label={t("currentStock")}>{p.stock} {t("units")}</FieldPair><FieldPair label={t("reorderLevel")}>{p.reorderLevel}</FieldPair><FieldPair label={t("velocity")}>{p.dailySales} {t("perDay")}</FieldPair><FieldPair label={t("daysCover")}>{Math.floor(p.stock/p.dailySales)}</FieldPair></div><FieldPair label={t("vendor")}>{data.vendors.find(v=>v.id===p.vendorId)?.name}</FieldPair><p className="muted">{t("stockAdvice")}</p><div className="detail-insight"><h3>{t("recommended")}</h3><p>{insight.recommendation[lang]}</p><ActionForm insight={insight}/></div></>;
+ const p=data.products.find(p=>p.id===panel.id);if(!p)return null;title=t("productDetails");const insight=data.insights.find(i=>i.targetId===p.id)??{...data.insights[1],id:`STOCK-${p.id}`,targetId:p.id,title:{en:`Restock ${p.name}`,hi:`${p.name} का स्टॉक भरें`,hinglish:`${p.name} restock karein`},summary:{en:p.sku,hi:p.sku,hinglish:p.sku},recommendation:{en:`Review a purchase of ${Math.max(0,p.reorderLevel*2-p.stock)} units.`,hi:`${Math.max(0,p.reorderLevel*2-p.stock)} यूनिट की खरीद पर विचार करें।`,hinglish:`${Math.max(0,p.reorderLevel*2-p.stock)} units ki purchase review karein.`}};content=<><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}><div><span className="product-icon large"><Package size={30}/></span><h2>{p.name}</h2><p className="mono muted">{p.sku}</p></div><div style={{display:"flex",gap:8}}><Button variant="secondary" onClick={()=>open({kind:"editProduct",productId:p.id})}><Pencil size={14}/>{t("editProduct")}</Button><DeleteProductButton productId={p.id} productName={p.name} onDelete={()=>{app.deleteProduct(p.id);close();}} deleteLabel={t("deleteProduct")}/></div></div><Badge status={stockStatus(p)}/><div className="field-grid"><FieldPair label={t("currentStock")}>{p.stock} {t("units")}</FieldPair><FieldPair label={t("reorderLevel")}>{p.reorderLevel}</FieldPair><FieldPair label={t("velocity")}>{p.dailySales} {t("perDay")}</FieldPair><FieldPair label={t("daysCover")}>{Math.floor(p.stock/p.dailySales)}</FieldPair></div><FieldPair label={t("vendor")}>{data.vendors.find(v=>v.id===p.vendorId)?.name}</FieldPair><p className="muted">{t("stockAdvice")}</p><div className="detail-insight"><h3>{t("recommended")}</h3><p>{insight.recommendation[lang]}</p><ActionForm insight={insight}/></div></>;
+ }else if(panel.kind==="editProduct"){
+  title=t("editProduct");content=<EditProductForm productId={panel.productId}/>;
  }else if(panel.kind==="document"){
   const d=[...local.uploadedDocuments,...data.documents].find(d=>d.id===panel.id);if(!d)return null;title=t("documentDetails");
   const inv=d.relatedId?.startsWith("INV-")?data.invoices.find(i=>i.id===d.relatedId):undefined;
@@ -65,8 +68,8 @@ function ActionForm({insight}:{insight:Insight}){
   const customerName=customer?.name??"Customer";
 
   const whatsappMessage=lang==="hi"
-    ?`नमस्ते ${customerName}, शर्मा इलेक्ट्रॉनिक्स (कानपुर) से विनम्र अनुस्मारक। बिल ${invoiceId} का बकाया ${amountStr} है। कृपया जल्द भुगतान करें। धन्यवाद!`
-    :`Dear ${customerName}, greeting from Sharma Electronics (Kanpur). This is a reminder regarding pending invoice ${invoiceId} for ${amountStr}. Kindly arrange payment at your earliest. Thank you!`;
+    ?`नमस्ते ${customerName}, ${data?.business.name??"VyaparAI"} (कानपुर) से विनम्र अनुस्मारक। बिल ${invoiceId} का बकाया ${amountStr} है। कृपया जल्द भुगतान करें। धन्यवाद!`
+    :`Dear ${customerName}, greetings from ${data?.business.name??"VyaparAI"} (Kanpur). This is a reminder regarding pending invoice ${invoiceId} for ${amountStr}. Kindly arrange payment at your earliest. Thank you!`;
 
   const copyWhatsApp=()=>{
     if(typeof navigator!=="undefined"&&navigator.clipboard){
@@ -375,3 +378,113 @@ function CreateProductForm(){
   </form>;
 }
 
+function EditProductForm({productId}:{productId:string}){
+  const {data,updateProduct,deleteProduct,notify,close,open,t}=useApp();
+  const product=data?.products.find(p=>p.id===productId);
+  const [name,setName]=useState(product?.name||"");
+  const [sku,setSku]=useState(product?.sku||"");
+  const [category,setCategory]=useState(product?.category||"Audio");
+  const [price,setPrice]=useState(product?.price||0);
+  const [stock,setStock]=useState(product?.stock||0);
+  const [reorderLevel,setReorderLevel]=useState(product?.reorderLevel||10);
+  const [dailySales,setDailySales]=useState(product?.dailySales||1);
+  const [vendorId,setVendorId]=useState(product?.vendorId||data?.vendors[0]?.id||"VEN-501");
+  const [hsnCode,setHsnCode]=useState(product?.hsnCode||"8528");
+
+  if(!product)return <EmptyState title={t("noResults")} description={t("trySearch")}/>;
+
+  const handleSubmit=(e:React.FormEvent)=>{
+    e.preventDefault();
+    if(!name.trim())return;
+    updateProduct(productId,{
+      name:name.trim(),
+      sku:sku.trim()||product.sku,
+      category,
+      price,
+      stock,
+      reorderLevel,
+      dailySales,
+      vendorId,
+      hsnCode
+    });
+    notify("saved");
+    open({kind:"product",id:productId});
+  };
+
+  const [confirmingDelete,setConfirmingDelete]=useState(false);
+
+  return <form className="action-form" onSubmit={handleSubmit} style={{width:"100%",gap:14}}>
+    <label style={{width:"100%"}}>
+      <span style={{fontWeight:600,fontSize:12}}>{t("product")} Name</span>
+      <input type="text" value={name} onChange={e=>setName(e.target.value)} required style={{width:"100%",padding:"8px 10px"}}/>
+    </label>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,width:"100%"}}>
+      <label>
+        <span style={{fontWeight:600,fontSize:12}}>{t("sku")}</span>
+        <input type="text" value={sku} onChange={e=>setSku(e.target.value)} required style={{width:"100%",padding:"8px 10px"}}/>
+      </label>
+      <label>
+        <span style={{fontWeight:600,fontSize:12}}>{t("category")}</span>
+        <select value={category} onChange={e=>setCategory(e.target.value)} style={{width:"100%",padding:"8px 10px"}}><option value="Audio">Audio</option><option value="Appliances">Appliances</option><option value="Wearables">Wearables</option><option value="Accessories">Accessories</option></select>
+      </label>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,width:"100%"}}>
+      <label>
+        <span style={{fontWeight:600,fontSize:12}}>Unit Price (₹)</span>
+        <input type="number" min={0} value={price} onChange={e=>setPrice(Math.max(0,parseInt(e.target.value)||0))} required style={{width:"100%",padding:"8px 10px"}}/>
+      </label>
+      <label>
+        <span style={{fontWeight:600,fontSize:12}}>{t("currentStock")}</span>
+        <input type="number" min={0} value={stock} onChange={e=>setStock(Math.max(0,parseInt(e.target.value)||0))} required style={{width:"100%",padding:"8px 10px"}}/>
+      </label>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,width:"100%"}}>
+      <label>
+        <span style={{fontWeight:600,fontSize:12}}>{t("reorderLevel")}</span>
+        <input type="number" min={0} value={reorderLevel} onChange={e=>setReorderLevel(Math.max(0,parseInt(e.target.value)||0))} required style={{width:"100%",padding:"8px 10px"}}/>
+      </label>
+      <label>
+        <span style={{fontWeight:600,fontSize:12}}>{t("velocity")} (units/day)</span>
+        <input type="number" min={0} value={dailySales} onChange={e=>setDailySales(Math.max(0,parseInt(e.target.value)||0))} required style={{width:"100%",padding:"8px 10px"}}/>
+      </label>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,width:"100%"}}>
+      <label>
+        <span style={{fontWeight:600,fontSize:12}}>Supplier / {t("vendor")}</span>
+        <select value={vendorId} onChange={e=>setVendorId(e.target.value)} style={{width:"100%",padding:"8px 10px"}}>
+          {data?.vendors.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
+        </select>
+      </label>
+      <label>
+        <span style={{fontWeight:600,fontSize:12}}>HSN Code</span>
+        <input type="text" value={hsnCode} onChange={e=>setHsnCode(e.target.value)} style={{width:"100%",padding:"8px 10px"}}/>
+      </label>
+    </div>
+    <div style={{display:"flex",gap:10,width:"100%",marginTop:8,flexWrap:"wrap"}}>
+      <Button variant="primary" type="submit" style={{flex:1,justifyContent:"center"}}>{t("save")}</Button>
+      {confirmingDelete ? (
+        <>
+          <Button variant="danger" type="button" onClick={()=>{deleteProduct(productId);close();}}>{t("deleteProduct")}</Button>
+          <Button type="button" onClick={()=>setConfirmingDelete(false)}>{t("cancel")}</Button>
+        </>
+      ) : (
+        <Button variant="danger" type="button" onClick={()=>setConfirmingDelete(true)}><Trash2 size={14}/>{t("deleteProduct")}</Button>
+      )}
+      <Button type="button" onClick={close}>{t("cancel")}</Button>
+    </div>
+  </form>;
+}
+
+function DeleteProductButton({productId:_,productName,onDelete,deleteLabel}:{productId:string;productName:string;onDelete:()=>void;deleteLabel:string}){
+  const [confirming,setConfirming]=useState(false);
+  if(confirming){
+    return (
+      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <AlertTriangle size={14} style={{color:"var(--red)"}}/>
+        <Button variant="danger" onClick={onDelete}>{deleteLabel} &quot;{productName}&quot;?</Button>
+        <Button onClick={()=>setConfirming(false)}>No</Button>
+      </div>
+    );
+  }
+  return <Button variant="danger" onClick={()=>setConfirming(true)}><Trash2 size={14}/>{deleteLabel}</Button>;
+}

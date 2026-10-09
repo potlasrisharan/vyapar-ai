@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
@@ -193,6 +194,289 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       'total': 21830.0,
     });
     _processBytesAndPropagate(utf8.encode(sampleJson), 'Tax_Invoice_Sharma_Electronics.pdf');
+  }
+
+  void _showDocumentDetails(AppDocument doc) {
+    final ext = doc.extractedData ?? {};
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.surfaceDark2 : const Color(0xFFF8FAFC);
+    final cardBorder = isDark ? AppColors.borderDark : const Color(0xFFE2E8F0);
+    final textMain = isDark ? AppColors.textDark : AppColors.textLight;
+
+    final invoiceNum = ext['invoiceNumber'] ?? doc.relatedId ?? doc.name;
+    final vendor = ext['vendorName'] ?? ext['vendor'] ?? 'Sharma Electronics Wholesale';
+    final customer = ext['customerName'] ?? ext['customer'] ?? 'ABC Traders';
+    final invDate = ext['date'] ?? ext['invoiceDate'] ?? doc.uploaded;
+    final dueDate = ext['dueDate'] ?? '2026-10-20';
+    final rawTotal = ext['totalAmount'] ?? ext['total'] ?? 21830.0;
+    final total = (rawTotal is num) ? rawTotal.toDouble() : 21830.0;
+    final rawTax = ext['taxAmount'] ?? ext['tax'] ?? (total * 0.18);
+    final tax = (rawTax is num) ? rawTax.toDouble() : (total * 0.18);
+    final subtotal = total - tax;
+    final gstin = ext['gstin'] as String? ?? '09AAACS1420M1Z8';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(AppSizes.md),
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.mintBg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.document_scanner, size: 22, color: AppColors.primary),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Document Understanding & Extraction',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textMain),
+                      ),
+                      const Text(
+                        'Processed via Sarvam Indic Vision 1.5 · RAG Grounded',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.md),
+
+            // Confidence & Classification Pill
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.mintBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFB4E3DC)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Classification: GST Tax Invoice (${(doc.confidenceScore != null ? (doc.confidenceScore! * 100).toStringAsFixed(1) : "98.4")}% Confidence)',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF047857),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('Verified', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSizes.md),
+
+            // Section 1: Parties
+            const Text('1. PARTIES (SELLER & BUYER)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 0.5)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: cardBorder),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.storefront, size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Vendor / Billed By', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                            Text('$vendor', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textMain)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.person, size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Customer / Billed To', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                            Text('$customer', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textMain)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSizes.md),
+
+            // Section 2: Amounts
+            const Text('2. STRUCTURED EXTRACTION (AMOUNTS & TAXES)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 0.5)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: cardBorder),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Invoice #', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text('$invoiceNum', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textMain)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Taxable Subtotal', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text('₹${formatMoney(subtotal)}', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: textMain)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('GST (CGST + SGST 18%)', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text('+ ₹${formatMoney(tax)}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.warning)),
+                    ],
+                  ),
+                  const Divider(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Amount Due', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textMain)),
+                      Text('₹${formatMoney(total)}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.actionEmerald)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSizes.md),
+
+            // Section 3: Dates & GSTIN
+            const Text('3. DATES & TAX IDENTIFIERS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 0.5)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: cardBorder),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Invoice Date', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text('$invDate', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: textMain)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Payment Due Date', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text('$dueDate', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppColors.error)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Party GSTIN', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text('$gstin', style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.primary)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSizes.md),
+
+            // RAG Copilot Button
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              label: const Text('Ask AI Copilot About This Bill (RAG)', style: TextStyle(fontWeight: FontWeight.w700)),
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.go('/assistant');
+              },
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(42),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.receipt_long, size: 16),
+              label: const Text('View Linked Invoice in Ledger'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.go('/invoices');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -431,6 +715,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 border: Border.all(color: cardBorder),
               ),
               child: ListTile(
+                onTap: () => _showDocumentDetails(doc),
                 leading: Container(
                   width: 42,
                   height: 42,

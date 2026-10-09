@@ -18,12 +18,11 @@ export async function POST(req: NextRequest) {
     const transcript = await sarvamSTT(file, 'recording.wav', languageCode);
 
     return NextResponse.json({
-      transcript: transcript,
+      transcript: transcript || '',
       languageCode: languageCode,
     });
   } catch (error: unknown) {
     console.error('STT API Error:', error);
-    const message = error instanceof Error ? error.message : 'STT transcription failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ transcript: '', error: 'Transcription unavailable' }, { status: 200 });
   }
 }

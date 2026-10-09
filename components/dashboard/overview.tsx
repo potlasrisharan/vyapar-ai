@@ -12,20 +12,30 @@ import { Badge, Card, MetricCard, SectionHeading } from "@/components/ui";
 import { RevenueChart } from "./revenue-chart";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const HI_WEEKDAYS = ["रविवार", "सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार"];
+const HI_MONTHS = ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"];
 
 export function Overview(){
   const {data,t,lang,status,open}=useApp();
   const [activity,setActivity]=useState("all");
   const [calendarOpen,setCalendarOpen]=useState(false);
-  const [selectedPeriod,setSelectedPeriod]=useState<string>("September 2026");
-  const [calDate,setCalDate]=useState({year:2026,month:8}); // 8 = September
-  const [selectedDay,setSelectedDay]=useState<number>(30);
+  const [selectedPeriod,setSelectedPeriod]=useState<string>("October 2026");
+  const [calDate,setCalDate]=useState({year:2026,month:9}); // 9 = October
+  const [selectedDay,setSelectedDay]=useState<number>(9);
+  const [selectedMonth,setSelectedMonth]=useState<number>(9);
+  const [selectedYear,setSelectedYear]=useState<number>(2026);
+  const eyebrowRef=useRef<HTMLButtonElement>(null);
   const calendarRef=useRef<HTMLDivElement>(null);
   const router=useRouter();
 
   useEffect(()=>{
     const handleOutsideClick=(e:MouseEvent)=>{
-      if(calendarRef.current&&!calendarRef.current.contains(e.target as Node)){
+      const target=e.target as Node;
+      if(
+        calendarRef.current&&!calendarRef.current.contains(target)&&
+        !eyebrowRef.current?.contains(target)
+      ){
         setCalendarOpen(false);
       }
     };
@@ -51,19 +61,64 @@ export function Overview(){
 
   const handleSelectDay=(day:number)=>{
     setSelectedDay(day);
+    setSelectedMonth(calDate.month);
+    setSelectedYear(calDate.year);
     setSelectedPeriod(`${day} ${MONTH_NAMES[calDate.month].slice(0,3)} ${calDate.year}`);
     setCalendarOpen(false);
   };
 
   const handleSelectPreset=(preset:string)=>{
     setSelectedPeriod(preset);
+    if(preset==="Today (9 Oct 2026)"||preset==="October 2026"){
+      setCalDate({year:2026,month:9});
+      setSelectedMonth(9);
+      setSelectedYear(2026);
+      setSelectedDay(9);
+    }else if(preset==="September 2026"){
+      setCalDate({year:2026,month:8});
+      setSelectedMonth(8);
+      setSelectedYear(2026);
+      setSelectedDay(30);
+    }else if(preset==="Last 30 Days"){
+      setCalDate({year:2026,month:9});
+      setSelectedMonth(9);
+      setSelectedYear(2026);
+      setSelectedDay(9);
+    }else if(preset==="Q3 2026"){
+      setCalDate({year:2026,month:8});
+      setSelectedMonth(8);
+      setSelectedYear(2026);
+      setSelectedDay(30);
+    }else if(preset==="FY 2026-27"){
+      setCalDate({year:2026,month:9});
+      setSelectedMonth(9);
+      setSelectedYear(2026);
+      setSelectedDay(9);
+    }
     setCalendarOpen(false);
   };
+
+  const currDateObj=new Date(selectedYear,selectedMonth,selectedDay);
+  const formattedEyebrowDate=lang==="hi"
+    ?`${HI_WEEKDAYS[currDateObj.getDay()]}, ${selectedDay} ${HI_MONTHS[selectedMonth]} ${selectedYear}`
+    :`${WEEKDAY_NAMES[currDateObj.getDay()]}, ${selectedDay} ${MONTH_NAMES[selectedMonth].slice(0,3)} ${selectedYear}`;
 
   return <>
     <div className="overview-heading">
       <div>
-        <div className="eyebrow"><CalendarDays size={13}/> <span>{t("demoDate")}</span></div>
+        <div className="eyebrow">
+          <button 
+            type="button" 
+            ref={eyebrowRef}
+            className={`eyebrow-date-btn ${calendarOpen?"active":""}`} 
+            onClick={()=>setCalendarOpen(o=>!o)} 
+            title="Open calendar date picker"
+            aria-expanded={calendarOpen}
+          >
+            <CalendarDays size={14}/>
+            <span>{formattedEyebrowDate}</span>
+          </button>
+        </div>
         <h1>{t("greeting")} <span>{t("owner")}</span></h1>
         <p>{t("attention")}</p>
       </div>
@@ -93,11 +148,12 @@ export function Overview(){
               {Array.from({length:firstDayIndex}).map((_,i)=><span key={`empty-${i}`} className="cal-empty-cell"/>)}
               {Array.from({length:daysInMonth}).map((_,i)=>{
                 const day=i+1;
-                const isSelected=day===selectedDay&&calDate.month===8&&calDate.year===2026;
+                const isSelected=day===selectedDay&&calDate.month===selectedMonth&&calDate.year===selectedYear;
                 return <button key={day} type="button" className={`cal-day-cell ${isSelected?"active":""}`} onClick={()=>handleSelectDay(day)}>{day}</button>;
               })}
             </div>
             <div className="cal-presets">
+              <button type="button" className="cal-preset-btn today-preset" onClick={()=>handleSelectPreset("Today (9 Oct 2026)")}>Today (9 Oct)</button>
               <button type="button" className="cal-preset-btn" onClick={()=>handleSelectPreset("September 2026")}>September 2026</button>
               <button type="button" className="cal-preset-btn" onClick={()=>handleSelectPreset("October 2026")}>October 2026</button>
               <button type="button" className="cal-preset-btn" onClick={()=>handleSelectPreset("Last 30 Days")}>Last 30 Days</button>
@@ -135,17 +191,30 @@ export function Overview(){
         </div>
         <span className="simple-card-arrow"><ArrowRight size={20}/></span>
       </button>
-      <button className="simple-card-btn highlight-hero purple" onClick={()=>router.push("/assistant")}>
-        <span className="simple-card-icon"><MessageSquare size={26}/></span>
-        <div className="simple-card-info">
-          <div className="simple-card-header">
-            <strong>{t("askCopilot")}</strong>
-            <span className="hero-pill purple-pill">{lang==="hi"?"आवाज़ और AI":"Voice & AI"}</span>
+      <div className="ai-actions-col">
+        <button className="simple-card-btn highlight-hero purple" onClick={()=>router.push("/assistant")}>
+          <span className="simple-card-icon"><MessageSquare size={26}/></span>
+          <div className="simple-card-info">
+            <div className="simple-card-header">
+              <strong>{t("askCopilot")}</strong>
+              <span className="hero-pill purple-pill">{lang==="hi"?"आवाज़ और AI":"Voice & AI"}</span>
+            </div>
+            <small>{lang==="hi"?"बोलकर या लिखकर सवाल पूछें":lang==="hinglish"?"Bolkar ya likhkar sawal poochein":"Ask in voice or text"}</small>
           </div>
-          <small>{lang==="hi"?"बोलकर या लिखकर सवाल पूछें":lang==="hinglish"?"Bolkar ya likhkar sawal poochein":"Ask in voice or text"}</small>
-        </div>
-        <span className="simple-card-arrow"><ArrowUpRight size={20}/></span>
-      </button>
+          <span className="simple-card-arrow"><ArrowUpRight size={20}/></span>
+        </button>
+        <button className="simple-card-btn highlight-hero blue record-payment-below-ai" onClick={()=>open({kind:"recordPayment"})}>
+          <span className="simple-card-icon"><IndianRupee size={22}/></span>
+          <div className="simple-card-info">
+            <div className="simple-card-header">
+              <strong>{t("recordPayment")}</strong>
+              <span className="hero-pill blue-pill">{lang==="hi"?"भुगतान एंट्री":"UPI / Cash"}</span>
+            </div>
+            <small>{lang==="hi"?"पैसा आने पर तुरंत एंट्री करें":lang==="hinglish"?"Payment aane par turant entry karein":"Record money received"}</small>
+          </div>
+          <span className="simple-card-arrow"><ArrowUpRight size={20}/></span>
+        </button>
+      </div>
     </div>
     <section className="today-panel">
       <div className="today-heading">
@@ -185,11 +254,26 @@ export function Overview(){
       <SectionHeading title={t("recentActivity")} description={t("activityNote")} action={<div className="segmented" role="group" aria-label={t("recentActivity")}>{["all","invoices","documents"].map(key=><button key={key} className={activity===key?"active":""} onClick={()=>setActivity(key)}>{t(key as "all"|"invoices"|"documents")}</button>)}</div>}/>
       <div className="activity-list">{activity!=="documents"&&<><button className="activity-row" onClick={()=>open({kind:"invoice",id:"INV-1040"})}><span className="activity-icon teal"><IndianRupee size={17}/></span><span><strong>{t("paymentReceived")}</strong><small>{data.customers.find(c=>c.id===data.invoices[39].customerId)?.name} · INV-1040</small></span><span><strong>+ {money(7000)}</strong><small>{date("2026-09-29",lang)}</small></span><ChevronRight size={16}/></button><button className="activity-row" onClick={()=>open({kind:"invoice",id:"INV-1039"})}><span className="activity-icon blue"><Receipt size={17}/></span><span><strong>{t("invoiceAdded")}</strong><small>INV-1039 · {data.customers.find(c=>c.id===data.invoices[38].customerId)?.name}</small></span><span><strong>{money(10000)}</strong><small>{date(data.invoices[38].date,lang)}</small></span><ChevronRight size={16}/></button></>}{activity!=="invoices"&&<button className="activity-row" onClick={()=>open({kind:"document",id:"DOC-INVENTORY"})}><span className="activity-icon amber"><FileText size={17}/></span><span><strong>{t("documentAdded")}</strong><small>Inventory_September.xlsx</small></span><span><Badge status="completed"/><small>{date("2026-09-30",lang)}</small></span><ChevronRight size={16}/></button>}</div>
     </Card>
-    <button className="copilot-strip" onClick={()=>router.push("/assistant")}>
-      <span className="copilot-strip-icon"><MessageSquare size={20}/></span>
-      <span><strong>{t("askCopilot")}</strong><small>{t("askPlaceholder")}</small></span>
-      <span className="copilot-strip-arrow"><ArrowUpRight size={19}/></span>
-    </button>
+    <div className="copilot-footer-section">
+      <button className="copilot-strip" onClick={()=>router.push("/assistant")}>
+        <span className="copilot-strip-icon"><MessageSquare size={20}/></span>
+        <span><strong>{t("askCopilot")}</strong><small>{t("askPlaceholder")}</small></span>
+        <span className="copilot-strip-arrow"><ArrowUpRight size={19}/></span>
+      </button>
+      <div className="below-ai-strip-action">
+        <button className="simple-card-btn highlight-hero blue bottom-record-btn" onClick={()=>open({kind:"recordPayment"})}>
+          <span className="simple-card-icon"><IndianRupee size={20}/></span>
+          <div className="simple-card-info">
+            <div className="simple-card-header">
+              <strong>{t("recordPayment")}</strong>
+              <span className="hero-pill blue-pill">{lang==="hi"?"भुगतान एंट्री":"Record Payment"}</span>
+            </div>
+            <small>{lang==="hi"?"ग्राहक से आया पैसा दर्ज करें":lang==="hinglish"?"Customer se aaya payment record karein":"Quick record money received"}</small>
+          </div>
+          <span className="simple-card-arrow"><ArrowUpRight size={18}/></span>
+        </button>
+      </div>
+    </div>
   </>;
 }
 

@@ -26,9 +26,8 @@ class ApiService {
   ApiService({String? baseUrl}) {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl ?? const String.fromEnvironment('API_BASE_URL', defaultValue: _defaultBaseUrl),
-      connectTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 30),
-      headers: {'Content-Type': 'application/json'},
     ));
 
     _dio.interceptors.add(LogInterceptor(
@@ -99,7 +98,11 @@ class ApiService {
       'file': MultipartFile.fromBytes(audioBytes, filename: 'recording.wav'),
       'language_code': languageCode,
     });
-    final res = await _dio.post('/api/ai/voice/stt', data: formData);
+    final res = await _dio.post(
+      '/api/ai/voice/stt',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
     return (res.data as Map<String, dynamic>)['transcript'] as String? ?? '';
   }
 
@@ -118,7 +121,11 @@ class ApiService {
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(imageBytes, filename: filename),
     });
-    final res = await _dio.post('/api/ai/ocr', data: formData);
+    final res = await _dio.post(
+      '/api/ai/ocr',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
     return res.data as Map<String, dynamic>;
   }
 }

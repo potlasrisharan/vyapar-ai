@@ -235,7 +235,7 @@ export function UdhaarKhataPage() {
       status: "pending",
       customerResponse: promiseResponse,
       note: promiseNote,
-      recordedBy: "Owner (Ramesh Sharma)",
+      recordedBy: `Owner (${t("owner")})`,
     });
     setPromiseModalCustomer(null);
   };
@@ -250,7 +250,7 @@ export function UdhaarKhataPage() {
       status: followupStatus,
       contactNotes: followupNotes,
       scheduledDate: followupDate,
-      recordedBy: "Owner (Ramesh Sharma)",
+      recordedBy: `Owner (${t("owner")})`,
     });
     setFollowupModalCustomer(null);
   };
@@ -364,13 +364,18 @@ export function UdhaarKhataPage() {
       </section>
 
       {/* 3. Prominent Section: "Aaj Kise Call Karein?" / "Who Should You Contact Today?" */}
-      <section className="aaj-kise-call-section" aria-label={t("whoToCallToday")}>
-        <div className="section-title-wrap">
-          <div className="d-flex items-center gap-2">
-            <Phone size={18} className="call-icon-pulse text-brand-teal" />
-            <h2>{t("whoToCallToday")}</h2>
+      <section className="today-panel udhaar-priority-panel" aria-label={t("whoToCallToday")}>
+        <div className="today-heading">
+          <div className="today-title">
+            <div className="sparkle-box">
+              <Phone size={18} className="call-icon-pulse text-brand-teal" />
+            </div>
+            <div>
+              <h2>{t("whoToCallToday")}</h2>
+              <p>{t("whoToCallSubtitle")}</p>
+            </div>
           </div>
-          <p className="muted small">{t("whoToCallSubtitle")}</p>
+          <span className="badge badge-teal">{topPriorityCalls.length} Priority Leads</span>
         </div>
 
         <div className="call-priorities-grid">
@@ -391,7 +396,7 @@ export function UdhaarKhataPage() {
                   </div>
                   <div className="priority-balance-box">
                     <span className="overdue-amount">{money(summary.totalOutstanding)}</span>
-                    <small className="danger-text">{summary.daysOverdue} {t("daysOverdue")}</small>
+                    <span className="overdue-tag danger-text">{summary.daysOverdue} {t("daysOverdue")}</span>
                   </div>
                 </div>
 
@@ -415,25 +420,27 @@ export function UdhaarKhataPage() {
                       {t("callCustomer")}
                     </a>
                   ) : (
-                    <Button disabled className="button ghost">
+                    <Button disabled className="button ghost call-action-btn">
                       {t("noPhoneAvailable")}
                     </Button>
                   )}
 
-                  <Button variant="secondary" onClick={() => handleOpenWhatsAppModal(summary)}>
-                    <MessageCircle size={14} />
-                    WhatsApp
-                  </Button>
+                  <div className="priority-secondary-actions">
+                    <Button variant="secondary" onClick={() => handleOpenWhatsAppModal(summary)}>
+                      <MessageCircle size={14} />
+                      WhatsApp
+                    </Button>
 
-                  <Button variant="secondary" onClick={() => setPromiseModalCustomer(summary)}>
-                    <Calendar size={14} />
-                    {t("recordPromise")}
-                  </Button>
+                    <Button variant="secondary" onClick={() => setPromiseModalCustomer(summary)}>
+                      <Calendar size={14} />
+                      {t("recordPromise")}
+                    </Button>
 
-                  <Button variant="ghost" onClick={() => setSelectedCustomerId(summary.customer.id)}>
-                    <ChevronRight size={14} />
-                    {t("viewRecord")}
-                  </Button>
+                    <Button variant="ghost" onClick={() => setSelectedCustomerId(summary.customer.id)}>
+                      <ChevronRight size={14} />
+                      {t("viewRecord")}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>

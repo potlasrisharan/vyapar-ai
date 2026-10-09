@@ -137,37 +137,75 @@ export async function sarvamTTS(
 }
 
 /**
- * Speech-to-Text using Sarvam Saaras:v2 (powered by SARVAM_API_KEY)
+ * Speech-to-Text using Sarvam Saaras:v3 (with Groq Whisper fallback)
  */
 export async function sarvamSTT(
   audioBlob: Blob,
   fileName: string = 'audio.wav',
   languageCode: string = 'hi-IN'
 ): Promise<string> {
-  const apiKey = getServicesApiKey();
+  // 1. Primary: Sarvam Saaras:v3 Indic Speech-to-Text
+  try {
+    const apiKey = getServicesApiKey();
+    const formData = new FormData();
+    formData.append('file', audioBlob, fileName);
+    formData.append('model', 'saaras:v3');
+    if (languageCode && languageCode !== 'unknown') {
+      formData.append('language_code', languageCode);
+    }
 
-  const formData = new FormData();
-  formData.append('file', audioBlob, fileName);
-  formData.append('model', 'saaras:v2');
-  if (languageCode && languageCode !== 'unknown') {
-    formData.append('language_code', languageCode);
+    const response = await fetch(`${SARVAM_BASE_URL}/speech-to-text`, {
+      method: 'POST',
+      headers: {
+        'api-subscription-key': apiKey,
+      },
+      body: formData,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.transcript && data.transcript.trim()) {
+        return data.transcript.trim();
+      }
+    } else {
+      const errorBody = await response.text();
+      console.warn(`Sarvam STT returned status ${response.status}:`, errorBody);
+    }
+  } catch (err) {
+    console.warn('Sarvam STT call failed, falling back to Groq Whisper:', err);
   }
 
-  const response = await fetch(`${SARVAM_BASE_URL}/speech-to-text`, {
-    method: 'POST',
-    headers: {
-      'api-subscription-key': apiKey,
-    },
-    body: formData,
-  });
+  // 2. Resilient Fallback: Groq Whisper Large v3
+  const groqKey = getGroqApiKey();
+  if (groqKey) {
+    try {
+      const groqFormData = new FormData();
+      groqFormData.append('file', audioBlob, fileName.endsWith('.wav') ? fileName : 'audio.wav');
+      groqFormData.append('model', 'whisper-large-v3');
+      if (languageCode && languageCode.startsWith('hi')) {
+        groqFormData.append('language', 'hi');
+      }
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Sarvam STT API error (${response.status}): ${errorBody}`);
+      const groqRes = await fetch(`${GROQ_BASE_URL}/audio/transcriptions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${groqKey}`,
+        },
+        body: groqFormData,
+      });
+
+      if (groqRes.ok) {
+        const groqData = await groqRes.json();
+        if (groqData.text && groqData.text.trim()) {
+          return groqData.text.trim();
+        }
+      }
+    } catch (groqErr) {
+      console.warn('Groq Whisper fallback failed:', groqErr);
+    }
   }
 
-  const data = await response.json();
-  return data.transcript || '';
+  return '';
 }
 
 /**
