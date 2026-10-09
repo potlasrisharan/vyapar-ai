@@ -14,7 +14,8 @@ $$\text{UNDERSTAND} \longrightarrow \text{DETECT} \longrightarrow \text{PRIORITI
 - **AWS Infrastructure:** AWS Amplify (App ID: `d1c1qib3o07xy9`) + CloudFront Edge CDN + S3 Storage
 - **AWS Region:** `ap-southeast-2` (Sydney)
 - **AWS Account ID:** `496178998121` (Profile: `avinya`)
-- **GitHub Repository (Public):** [https://github.com/potlasrisharan/vyapar-ai](https://github.com/potlasrisharan/vyapar-ai)
+- **GitHub Repository (Single Canonical Source):** [https://github.com/potlasrisharan/vyapar-ai](https://github.com/potlasrisharan/vyapar-ai)
+- **Legacy Repository:** `potlasrisharan/vyaparai` (Archived & Deprecated — consolidated into `vyapar-ai`)
 - **Branches:** `main` (Production Auto-Build), `dev` (Development)
 
 ---
@@ -79,7 +80,7 @@ $$\text{UNDERSTAND} \longrightarrow \text{DETECT} \longrightarrow \text{PRIORITI
 - Deployed production artifacts across CloudFront global edge CDN with HTTP/2 200 verification.
 
 ### 4. Git & Security
-- Initialized Git repository, created private GitHub repository `potlasrisharan/vyaparai`.
+- Canonical repository consolidated to `potlasrisharan/vyapar-ai` (single source of truth); legacy `vyaparai` repo archived.
 - Enforced strict credential isolation: `.env*` stored locally and git-ignored.
 - Code passes all 5 unit tests, 14 E2E Playwright tests, zero TypeScript errors, and zero lint warnings.
 
