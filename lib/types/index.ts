@@ -1,6 +1,6 @@
 export type Language = "en" | "hi" | "hinglish";
 export type Localized = Record<Language, string>;
-export type Route = "overview" | "documents" | "invoices" | "payments" | "customers" | "vendors" | "inventory" | "expenses" | "insights" | "assistant" | "settings";
+export type Route = "overview" | "documents" | "invoices" | "payments" | "customers" | "vendors" | "inventory" | "expenses" | "insights" | "assistant" | "settings" | "udhaar-khata";
 
 export interface Business {
   id: string;
@@ -363,6 +363,8 @@ export interface LocalState {
   customCustomers?: Customer[];
   customVendors?: Vendor[];
   customProducts?: Product[];
+  deletedProductIds?: string[];
+  productOverrides?: Record<string, Partial<Product>>;
   paymentPromises?: PaymentPromise[];
   collectionFollowups?: CollectionFollowup[];
 }

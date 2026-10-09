@@ -217,4 +217,182 @@ Tax: ₹3,150`;
   assert.ok(reminder.note.includes("Gupta Electricals"));
 });
 
+import {
+  calculateCustomerUdhaarSummary,
+  calculateUdhaarDashboardSummary,
+  normalizeOverdueScore,
+  normalizeExposureScore,
+  normalizePromiseScore,
+  calculatePriorityBreakdown,
+  calculateReliabilityRating,
+} from "../lib/domain/udhaar-engine";
+import type { PaymentPromise, CollectionFollowup } from "../lib/types";
+
+test("udhaar khata engine reconciles receivables totals against raw invoices", () => {
+  const summaries = data.customers.map((c) =>
+    calculateCustomerUdhaarSummary(c, data.invoices, data.payments, [], [])
+  );
+  const dashboard = calculateUdhaarDashboardSummary(summaries);
+
+  assert.equal(dashboard.totalOutstanding, 82000);
+  assert.equal(dashboard.customersWithBalanceCount, 5);
+  assert.equal(dashboard.overdueCustomersCount, 3);
+  assert.equal(dashboard.totalOverdue, 65000);
+  assert.equal(dashboard.totalCollected, 400000);
+
+  const activeDebtors = summaries.filter((s) => s.totalOutstanding > 0);
+  assert.equal(activeDebtors.length, 5);
+  const abcTraders = activeDebtors.find((s) => s.customer.id === "CUS-1001");
+  assert.ok(abcTraders);
+  assert.equal(abcTraders.totalOutstanding, 35000);
+  assert.equal(abcTraders.overdueBalance, 35000);
+  assert.equal(abcTraders.priority.band, "high");
+});
+
+test("priority scoring engine correctly balances overdue, exposure, promises and risk trend", () => {
+  assert.equal(normalizeOverdueScore(0, true), 0);
+  assert.equal(normalizeOverdueScore(0, false), 0);
+  assert.equal(normalizeOverdueScore(7, true), 40);
+  assert.equal(normalizeOverdueScore(15, true), 75);
+  assert.equal(normalizeOverdueScore(35, true), 100);
+
+  assert.equal(normalizeExposureScore(0), 0);
+  assert.equal(normalizeExposureScore(25000, 50000), 50);
+  assert.equal(normalizeExposureScore(50000, 50000), 100);
+  assert.equal(normalizeExposureScore(80000, 50000), 100);
+
+  const noPromises = normalizePromiseScore([]);
+  assert.equal(noPromises.score, 30);
+  const brokenPromise: PaymentPromise = {
+    id: "PRM-1",
+    businessId: "BIZ-1",
+    customerId: "CUS-1001",
+    expectedAmount: 35000,
+    expectedDate: "2026-09-20",
+    status: "missed",
+    note: "Did not wire",
+    createdAt: "2026-09-18",
+  };
+  const oneBroken = normalizePromiseScore([brokenPromise]);
+  assert.equal(oneBroken.score, 75);
+  const twoBroken = normalizePromiseScore([
+    brokenPromise,
+    { ...brokenPromise, id: "PRM-2" },
+  ]);
+  assert.equal(twoBroken.score, 100);
+
+  const settledCustomer = data.customers.find((c) => c.id === "CUS-1002")!;
+  const settledPriority = calculatePriorityBreakdown(
+    settledCustomer,
+    data.invoices,
+    data.payments,
+    []
+  );
+  assert.equal(settledPriority.score, 0);
+  assert.equal(settledPriority.band, "low");
+});
+
+test("customer reliability rating evaluates history independently of invoice size", () => {
+  // CUS-1001 has only 1 invoice (INV-1023), so properly flagged as insufficient history (< 2 cycles)
+  const c1001 = data.customers.find((c) => c.id === "CUS-1001")!;
+  const r1001 = calculateReliabilityRating(c1001, data.invoices, data.payments, []);
+  assert.equal(r1001.isInsufficientHistory, true);
+  assert.equal(r1001.stars, 0);
+  assert.ok(r1001.explanation.en.includes("Insufficient history"));
+
+  // CUS-1003 has 3 invoices with full on-time settlement history
+  const c1003 = data.customers.find((c) => c.id === "CUS-1003")!;
+  const r1003 = calculateReliabilityRating(c1003, data.invoices, data.payments, []);
+  assert.equal(r1003.isInsufficientHistory, false);
+  assert.equal(r1003.stars, 5);
+  assert.equal(r1003.score, 100);
+
+  const highValueCustomer = {
+    id: "CUS-HV-1",
+    name: "Large Corp",
+    contact: "Chief Procurement Officer",
+    phone: "9999999999",
+    city: "Mumbai",
+  };
+  const hvInvoices = [
+    {
+      id: "INV-HV-1",
+      number: "INV-HV-1",
+      customerId: "CUS-HV-1",
+      businessId: "BIZ-1",
+      date: "2026-08-01",
+      dueDate: "2026-08-15",
+      total: 500000,
+      subtotal: 500000,
+      tax: 0,
+      items: [],
+      notes: "",
+    },
+    {
+      id: "INV-HV-2",
+      number: "INV-HV-2",
+      customerId: "CUS-HV-1",
+      businessId: "BIZ-1",
+      date: "2026-09-01",
+      dueDate: "2026-09-15",
+      total: 750000,
+      subtotal: 750000,
+      tax: 0,
+      items: [],
+      notes: "",
+    },
+  ];
+  const hvPayments = [
+    {
+      id: "PAY-HV-1",
+      invoiceId: "INV-HV-1",
+      customerId: "CUS-HV-1",
+      amount: 500000,
+      date: "2026-08-14",
+      method: "bank" as const,
+    },
+    {
+      id: "PAY-HV-2",
+      invoiceId: "INV-HV-2",
+      customerId: "CUS-HV-1",
+      amount: 750000,
+      date: "2026-09-14",
+      method: "bank" as const,
+    },
+  ];
+  const hvRating = calculateReliabilityRating(highValueCustomer, hvInvoices, hvPayments, []);
+  assert.equal(hvRating.stars, 5);
+  assert.equal(hvRating.timelinessScore, 100);
+});
+
+test("promise and collection followup status transitions function correctly", () => {
+  const promise: PaymentPromise = {
+    id: "PRM-101",
+    businessId: "BIZ-1",
+    customerId: "CUS-1001",
+    expectedAmount: 15000,
+    expectedDate: "2026-10-15",
+    status: "pending",
+    note: "Promised by NEFT",
+    createdAt: "2026-10-09",
+  };
+
+  assert.equal(promise.status, "pending");
+  const fulfilledPromise = { ...promise, status: "fulfilled" as const };
+  assert.equal(fulfilledPromise.status, "fulfilled");
+
+  const followup: CollectionFollowup = {
+    id: "FOL-101",
+    businessId: "BIZ-1",
+    customerId: "CUS-1001",
+    channel: "call",
+    status: "contacted",
+    contactNotes: "Spoke with owner, promised remittance next Monday",
+    scheduledDate: "2026-10-16",
+    createdAt: "2026-10-09T10:00:00Z",
+  };
+  assert.equal(followup.channel, "call");
+  assert.equal(followup.customerId, "CUS-1001");
+});
+
 
