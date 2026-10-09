@@ -329,7 +329,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('Vendor / Billed By', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                            Text('$vendor', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textMain)),
+                            Text(vendor.toString(), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textMain)),
                           ],
                         ),
                       ),
@@ -346,7 +346,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('Customer / Billed To', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                            Text('$customer', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textMain)),
+                            Text(customer.toString(), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textMain)),
                           ],
                         ),
                       ),
@@ -373,7 +373,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Invoice #', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                      Text('$invoiceNum', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textMain)),
+                      Text(invoiceNum.toString(), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textMain)),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -421,7 +421,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Invoice Date', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                      Text('$invDate', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: textMain)),
+                      Text(invDate.toString(), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: textMain)),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -429,7 +429,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Payment Due Date', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                      Text('$dueDate', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppColors.error)),
+                      Text(dueDate.toString(), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppColors.error)),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -437,7 +437,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Party GSTIN', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                      Text('$gstin', style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.primary)),
+                      Text(gstin, style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.primary)),
                     ],
                   ),
                 ],

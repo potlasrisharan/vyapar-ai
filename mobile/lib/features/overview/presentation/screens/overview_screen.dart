@@ -210,6 +210,27 @@ class OverviewScreen extends ConsumerWidget {
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(40),
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary, width: 1.2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                      ),
+                    ),
+                    onPressed: () => context.go('/assistant'),
+                    icon: const Icon(Icons.auto_awesome, size: 16),
+                    label: Text(
+                      language == Language.hi
+                          ? '✦ AI साप्ताहिक कार्ययोजना (Action Plan) देखें'
+                          : language == Language.hinglish
+                              ? '✦ AI Weekly Action Plan Dekhein'
+                              : '✦ View AI-Generated Weekly Action Plan',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                    ),
+                  ),
                 ],
               ),
             ),
