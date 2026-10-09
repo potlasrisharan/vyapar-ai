@@ -169,7 +169,7 @@ export function Overview() {
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Revenue</p>
               <h3 className="text-2xl font-extrabold text-slate-800 dark:text-white">
-                ₹{money(totals.revenue, true)}
+                {money(totals.revenue, true)}
               </h3>
             </div>
             <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600">
@@ -187,7 +187,7 @@ export function Overview() {
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Outstanding</p>
               <h3 className="text-2xl font-extrabold text-slate-800 dark:text-white">
-                ₹{money(totals.outstanding, true)}
+                {money(totals.outstanding, true)}
               </h3>
             </div>
             <div className="w-10 h-10 rounded-lg bg-brand-purple/5 dark:bg-brand-purple/10 flex items-center justify-center text-brand-purple">
@@ -205,7 +205,7 @@ export function Overview() {
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Expenses</p>
               <h3 className="text-2xl font-extrabold text-slate-800 dark:text-white">
-                ₹{money(totals.expenses, true)}
+                {money(totals.expenses, true)}
               </h3>
             </div>
             <div className="w-10 h-10 rounded-lg bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center text-rose-600">
