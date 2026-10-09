@@ -148,7 +148,7 @@ export function AssistantPage(){
           ) : (
             <div className="messages">
               {conversation.messages.map(m=>{
-                const displayText = m.role==="assistant" && m.promptId ? responseText(m.promptId,lang) : m.promptId && m.promptId!=="unknown" ? t(promptKeys[m.promptId]) : m.text;
+                const displayText = m.role==="assistant" && m.promptId && m.promptId!=="unknown" && (promptKeys as Record<string, string>)[m.promptId] ? responseText(m.promptId,lang) : m.text;
                 return (
                   <article className={`message ${m.role}`} key={m.id}>
                     <div className="message-label" style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%"}}>
@@ -159,12 +159,13 @@ export function AssistantPage(){
                       {m.role==="assistant" && (
                         <button
                           type="button"
+                          className={`voice-play-btn ${playingId===m.id?"playing":""}`}
                           onClick={()=>void playVoice(m.id, displayText)}
                           aria-label="Listen via Sarvam Voice"
                           title="Listen with Sarvam Bulbul TTS"
-                          style={{background:"none",border:"none",cursor:"pointer",padding:"2px",color:playingId===m.id?"var(--color-accent)":"var(--color-text-muted)"}}
                         >
-                          {playingId===m.id ? <Loader2 size={15} className="spin"/> : <Volume2 size={15}/>}
+                          {playingId===m.id ? <Loader2 size={13} className="spin"/> : <Volume2 size={13}/>}
+                          <span>{playingId===m.id ? "Playing…" : "Listen"}</span>
                         </button>
                       )}
                     </div>
@@ -187,25 +188,29 @@ export function AssistantPage(){
           <label className="sr-only" htmlFor="assistant-input">{t("askPlaceholder")}</label>
           <textarea id="assistant-input" placeholder={t("askPlaceholder")} value={input} rows={2} maxLength={1000} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();void ask(input);}}}/>
           <div className="composer-bottom">
-            <span><span className="status-dot"/>{recording ? "Recording audio..." : t("sampleData")}</span>
-            <div style={{display:"flex",gap:"0.5rem",alignItems:"center"}}>
+            <span>
+              {recording ? (
+                <span className="recording-status">
+                  <span className="rec-dot"/>
+                  Recording… (Saaras STT)
+                </span>
+              ) : (
+                <>
+                  <span className="status-dot"/>
+                  {t("sampleData")}
+                </>
+              )}
+            </span>
+            <div className="composer-actions">
               <button
                 type="button"
+                className={`voice-record-btn ${recording?"recording":""}`}
                 onClick={()=>void toggleRecording()}
                 title={recording?"Stop recording":"Voice input (Sarvam Saaras STT)"}
-                style={{
-                  background:recording?"#dc2626":"transparent",
-                  color:recording?"#fff":"var(--color-text-muted)",
-                  border:"1px solid var(--color-border)",
-                  borderRadius:"8px",
-                  padding:"6px 10px",
-                  cursor:"pointer",
-                  display:"flex",
-                  alignItems:"center",
-                  gap:"4px"
-                }}
+                aria-label={recording?"Stop recording":"Record voice query"}
               >
-                {recording ? <MicOff size={16}/> : <Mic size={16}/>}
+                {recording ? <MicOff size={15}/> : <Mic size={15}/>}
+                <span>{recording ? "Stop" : "Speak"}</span>
               </button>
               <Button variant="primary" type="submit" aria-label={t("send")} disabled={busy||!input.trim()}><ArrowUp size={19}/></Button>
             </div>

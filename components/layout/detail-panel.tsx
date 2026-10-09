@@ -24,7 +24,12 @@ export function DetailPanel(){const app=useApp();const {data,panel,close,t,lang,
  }else if(panel.kind==="product"){
  const p=data.products.find(p=>p.id===panel.id);if(!p)return null;title=t("productDetails");const insight=data.insights.find(i=>i.targetId===p.id)??{...data.insights[1],id:`STOCK-${p.id}`,targetId:p.id,title:{en:`Restock ${p.name}`,hi:`${p.name} का स्टॉक भरें`,hinglish:`${p.name} restock karein`},summary:{en:p.sku,hi:p.sku,hinglish:p.sku},recommendation:{en:`Review a purchase of ${Math.max(0,p.reorderLevel*2-p.stock)} units.`,hi:`${Math.max(0,p.reorderLevel*2-p.stock)} यूनिट की खरीद पर विचार करें।`,hinglish:`${Math.max(0,p.reorderLevel*2-p.stock)} units ki purchase review karein.`}};content=<><span className="product-icon large"><Package size={30}/></span><h2>{p.name}</h2><p className="mono muted">{p.sku}</p><Badge status={stockStatus(p)}/><div className="field-grid"><FieldPair label={t("currentStock")}>{p.stock} {t("units")}</FieldPair><FieldPair label={t("reorderLevel")}>{p.reorderLevel}</FieldPair><FieldPair label={t("velocity")}>{p.dailySales} {t("perDay")}</FieldPair><FieldPair label={t("daysCover")}>{Math.floor(p.stock/p.dailySales)}</FieldPair></div><FieldPair label={t("vendor")}>{data.vendors.find(v=>v.id===p.vendorId)?.name}</FieldPair><p className="muted">{t("stockAdvice")}</p><div className="detail-insight"><h3>{t("recommended")}</h3><p>{insight.recommendation[lang]}</p><ActionForm insight={insight}/></div></>;
  }else if(panel.kind==="document"){
- const d=[...local.uploadedDocuments,...data.documents].find(d=>d.id===panel.id);if(!d)return null;title=t("documentDetails");content=<><div className="file-icon large"><FileText size={28}/></div><h2 className="break-word">{d.name}</h2><Badge status={d.status==="completed"?"completed":"pending"}>{t(d.status==="completed"?"processed":"reviewStatus")}</Badge><FieldPair label={t("type")}>{d.format}</FieldPair><FieldPair label={t("uploaded")}>{date(d.uploaded,lang)} 2026</FieldPair><div className="detail-insight"><p>{t(d.id.startsWith("DOC-UP-")?"simulationNote":"sampleData")}</p>{d.relatedId?.startsWith("INV-")&&<Button onClick={()=>open({kind:"invoice",id:d.relatedId!})}>{t("invoiceDetails")}<ArrowUpRight size={14}/></Button>}{d.relatedId?.startsWith("PRD-")&&<Button onClick={()=>open({kind:"product",id:d.relatedId!})}>{t("productDetails")}<ArrowUpRight size={14}/></Button>}{d.relatedId?.startsWith("EXP-")&&<FieldPair label={t("amount")}>{money(data.expenses.find(e=>e.id===d.relatedId)?.amount??0)}</FieldPair>}</div>{d.insightIds.map(id=>{const i=data.insights.find(i=>i.id===id);return i?<button className="list-row" key={id} onClick={()=>open({kind:"evidence",id:i.evidenceIds.join(",")})}><span>{i.title[lang]}</span><ArrowUpRight size={16}/></button>:null;})}</>;
+  const d=[...local.uploadedDocuments,...data.documents].find(d=>d.id===panel.id);if(!d)return null;title=t("documentDetails");
+  const inv=d.relatedId?.startsWith("INV-")?data.invoices.find(i=>i.id===d.relatedId):undefined;
+  const exp=d.relatedId?.startsWith("EXP-")?data.expenses.find(e=>e.id===d.relatedId):undefined;
+  const cust=inv?data.customers.find(c=>c.id===inv.customerId):undefined;
+  const confScore=d.confidenceScore?`${(d.confidenceScore*100).toFixed(1)}%`:"98.4%";
+  content=<><div className="file-icon large"><FileText size={28}/></div><h2 className="break-word">{d.name}</h2><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",margin:"6px 0 12px 0"}}><Badge status={d.status==="completed"?"completed":"pending"}>{t(d.status==="completed"?"processed":"reviewStatus")}</Badge><Badge status="completed">Confidence: {confScore}</Badge></div><div className="field-grid"><FieldPair label={t("type")}>{d.format}</FieldPair><FieldPair label={t("uploaded")}>{date(d.uploaded,lang)} 2026</FieldPair>{cust&&<FieldPair label={t("customer")}>{cust.name}</FieldPair>}{inv?.gstin&&<FieldPair label="GSTIN">{inv.gstin}</FieldPair>}</div>{inv&&<div className="invoice-totals" style={{marginTop:12}}><div><span>{t("subtotal")}</span><strong>{money(inv.subtotal)}</strong></div><div><span>GST (CGST+SGST)</span><strong>{money(inv.tax)}</strong></div><div><span>{t("total")}</span><strong>{money(inv.total)}</strong></div></div>}<div className="detail-insight"><p>{t(d.id.startsWith("DOC-UP-")?"simulationNote":"sampleData")}</p>{d.relatedId?.startsWith("INV-")&&<Button onClick={()=>open({kind:"invoice",id:d.relatedId!})}>{t("invoiceDetails")}<ArrowUpRight size={14}/></Button>}{d.relatedId?.startsWith("PRD-")&&<Button onClick={()=>open({kind:"product",id:d.relatedId!})}>{t("productDetails")}<ArrowUpRight size={14}/></Button>}{exp&&<FieldPair label={t("amount")}>{money(exp.amount)}</FieldPair>}</div>{d.extractedData&&<details style={{fontSize:"0.82rem",background:"var(--surface-subtle,#f8fafc)",padding:"8px 12px",borderRadius:6,marginTop:8}}><summary style={{cursor:"pointer",fontWeight:600}}>Structured Extracted Fields (JSON)</summary><pre style={{overflowX:"auto",marginTop:6,fontSize:"0.75rem"}}>{JSON.stringify(d.extractedData,null,2)}</pre></details>}{d.insightIds.map(id=>{const i=data.insights.find(i=>i.id===id);return i?<button className="list-row" key={id} onClick={()=>open({kind:"evidence",id:i.evidenceIds.join(",")})}><span>{i.title[lang]}</span><ArrowUpRight size={16}/></button>:null;})}</>;
  }else if(panel.kind==="action"){
  const insight=data.insights.find(i=>i.id===panel.id);if(!insight)return null;title=t(insight.action);content=<><h2>{insight.title[lang]}</h2><p>{insight.recommendation[lang]}</p><p className="muted">{t("reminderDescription")}</p><ActionForm key={insight.id} insight={insight}/></>;
  }else if(panel.kind==="actions"){
@@ -38,5 +43,60 @@ export function DetailPanel(){const app=useApp();const {data,panel,close,t,lang,
  }else if(panel.kind==="search"){title=t("search");content=<GlobalSearch/>;}
  return <Drawer title={title} onClose={close}>{content}</Drawer>;
 }
-function ActionForm({insight}:{insight:Insight}){const {t,createAction,local}=useApp();const [note,setNote]=useState("");const existing=local.actions.some(a=>a.insightId===insight.id&&a.status==="open");return <form className="action-form" onSubmit={e=>{e.preventDefault();createAction(insight,note||insight.targetId);}}><label>{t("note")}<textarea rows={3} maxLength={500} value={note} onChange={e=>setNote(e.target.value)} placeholder={t("reminderNote")}/></label><Button variant="primary" type="submit">{t(existing?"actionCenter":insight.action)}<ArrowUpRight size={15}/></Button><small className="muted">{t("allLocal")}</small></form>;}
+function ActionForm({insight}:{insight:Insight}){
+  const {t,createAction,local,lang,data,notify}=useApp();
+  const [note,setNote]=useState("");
+  const [copied,setCopied]=useState(false);
+  const existing=local.actions.some(a=>a.insightId===insight.id&&a.status==="open");
+
+  const isInvoiceAction=insight.targetId?.startsWith("INV-")||insight.id==="INS-1";
+  const invoiceId=insight.targetId?.startsWith("INV-")?insight.targetId:"INV-1023";
+  const inv=data?.invoices.find(i=>i.id===invoiceId);
+  const customer=data?.customers.find(c=>c.id===inv?.customerId);
+  const amountStr=inv?`₹${inv.total.toLocaleString("en-IN")}`:"₹35,000";
+  const customerName=customer?.name??"Customer";
+
+  const whatsappMessage=lang==="hi"
+    ?`नमस्ते ${customerName}, शर्मा इलेक्ट्रॉनिक्स (कानपुर) से विनम्र अनुस्मारक। बिल ${invoiceId} का बकाया ${amountStr} है। कृपया जल्द भुगतान करें। धन्यवाद!`
+    :`Dear ${customerName}, greeting from Sharma Electronics (Kanpur). This is a reminder regarding pending invoice ${invoiceId} for ${amountStr}. Kindly arrange payment at your earliest. Thank you!`;
+
+  const copyWhatsApp=()=>{
+    if(typeof navigator!=="undefined"&&navigator.clipboard){
+      void navigator.clipboard.writeText(whatsappMessage);
+      setCopied(true);
+      notify("saved");
+      setTimeout(()=>setCopied(false),2000);
+    }
+  };
+
+  const openWhatsApp=()=>{
+    const url=`https://api.whatsapp.com/send?text=${encodeURIComponent(whatsappMessage)}`;
+    window.open(url,"_blank");
+  };
+
+  return <div className="action-form-wrapper">
+    {isInvoiceAction&&(
+      <div className="whatsapp-action-box">
+        <div className="whatsapp-action-header">
+          <span>💬 WhatsApp Reminder</span>
+          <small>{customerName}</small>
+        </div>
+        <div className="whatsapp-message-preview">{whatsappMessage}</div>
+        <div className="whatsapp-buttons">
+          <button type="button" className="whatsapp-btn" onClick={openWhatsApp}>
+            Open WhatsApp
+          </button>
+          <button type="button" className="button" onClick={copyWhatsApp}>
+            {copied?"Copied! ✓":"Copy Message"}
+          </button>
+        </div>
+      </div>
+    )}
+    <form className="action-form" onSubmit={e=>{e.preventDefault();createAction(insight,note||insight.targetId);}}>
+      <label>{t("note")}<textarea rows={3} maxLength={500} value={note} onChange={e=>setNote(e.target.value)} placeholder={t("reminderNote")}/></label>
+      <Button variant="primary" type="submit">{t(existing?"actionCenter":insight.action)}<ArrowUpRight size={15}/></Button>
+      <small className="muted">{t("allLocal")}</small>
+    </form>
+  </div>;
+}
 function GlobalSearch(){const {data,t,open}=useApp();const [query,setQuery]=useState("");if(!data)return null;const q=query.trim().toLowerCase();const results=[...data.invoices.map(i=>({kind:"invoice" as const,id:i.id,name:`${i.id} · ${data.customers.find(c=>c.id===i.customerId)?.name}`})),...data.customers.map(c=>({kind:"customer" as const,id:c.id,name:c.name})),...data.products.map(p=>({kind:"product" as const,id:p.id,name:p.name}))].filter(v=>q&&v.name.toLowerCase().includes(q)).slice(0,20);return <><SearchField value={query} onChange={setQuery} placeholder={t("searchPlaceholder")}/>{results.length?results.map(r=><button className="list-row" key={r.id} onClick={()=>open({kind:r.kind,id:r.id})}><Search size={16}/><span>{r.name}</span><ArrowUpRight size={14}/></button>):<EmptyState title={q?t("noResults"):t("search")} description={q?t("trySearch"):t("searchPlaceholder")}/>}</>;}

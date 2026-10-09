@@ -16,7 +16,19 @@ export const assistantService: AssistantService = {
   async ask(question, language, promptId) {
     const id = promptId ?? classifyQuestion(question);
     
-    // Attempt real Sarvam AI endpoint first
+    if (id === "unknown") {
+      await sleep(200);
+      return {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: responseText("unknown", language),
+        promptId: "unknown",
+        evidenceIds: [],
+        createdAt: new Date().toISOString(),
+      };
+    }
+
+    // Attempt real Sarvam AI endpoint first for business domain reasoning
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",

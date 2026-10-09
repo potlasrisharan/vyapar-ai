@@ -74,10 +74,29 @@ export interface IActionService {
 }
 
 export interface INotificationService {
-  send(channel: "in_app" | "whatsapp" | "email" | "sms", recipient: string, message: string): Promise<boolean>;
+  send(channel: "in_app" | "whatsapp" | "email" | "sms" | "push", recipient: string, message: string): Promise<boolean>;
 }
 
 export interface IJobService {
   dispatchJob(jobName: string, payload: Record<string, unknown>): Promise<string>;
   getJobStatus(jobId: string): Promise<"queued" | "processing" | "completed" | "failed">;
 }
+
+export interface IEmailService {
+  searchEmails(query: string, businessId?: string): Promise<import("@/lib/types").EmailThread[]>;
+  getThread(id: string): Promise<import("@/lib/types").EmailThread | undefined>;
+  draftReply(threadId: string, intent: string, language: Language): Promise<string>;
+  sendEmail(to: string, subject: string, body: string): Promise<boolean>;
+}
+
+export interface IVoiceService {
+  transcribe(audioBlob: Blob, languageCode?: string): Promise<string>;
+  synthesize(text: string, languageCode?: string, speaker?: string): Promise<string>;
+  executeTool(toolName: string, args: Record<string, unknown>): Promise<import("@/lib/types").VoiceToolResult>;
+}
+
+export interface IAuditService {
+  log(entry: Omit<import("@/lib/types").AuditLogEntry, "id" | "timestamp">): Promise<import("@/lib/types").AuditLogEntry>;
+  getLogs(businessId?: string): Promise<import("@/lib/types").AuditLogEntry[]>;
+}
+

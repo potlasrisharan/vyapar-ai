@@ -7,7 +7,11 @@ export type DomainEventType =
   | "InventoryLow"
   | "ExpenseCreated"
   | "InsightGenerated"
-  | "ActionCreated";
+  | "ActionCreated"
+  | "ActionCompleted"
+  | "NotificationDispatched"
+  | "PaymentPromiseRecorded";
+
 
 export interface DomainEvent<T = unknown> {
   id: string;

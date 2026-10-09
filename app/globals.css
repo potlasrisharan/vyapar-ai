@@ -252,36 +252,171 @@ p { color: var(--secondary); }
   color: var(--muted);
 }
 
-/* Ambient Radial Mesh Orbs */
+/* Tactile Background Substrate (Clean Enterprise Grid, Zero Slop) */
 .ambient-mesh {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
   overflow: hidden;
+  opacity: 0.35;
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .ambient-orb {
-  position: absolute;
+  display: none;
+}
+
+/* Voice & Audio Controls (Sarvam Saaras STT & Bulbul TTS) */
+.voice-record-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--secondary);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.voice-record-btn:hover {
+  background: var(--mint);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.voice-record-btn.recording {
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
+  animation: pulse-recording 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-recording {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(185, 28, 28, 0); }
+}
+
+.recording-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--red);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.rec-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.55;
+  background: var(--red);
+  animation: pulse 1s infinite alternate;
 }
 
-.ambient-orb-1 {
-  width: 520px;
-  height: 520px;
-  top: -120px;
-  right: -80px;
-  background: radial-gradient(circle, rgba(13, 112, 99, 0.16), transparent 70%);
+.composer-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
-.ambient-orb-2 {
-  width: 460px;
-  height: 460px;
-  bottom: 80px;
-  left: 180px;
-  background: radial-gradient(circle, rgba(217, 161, 94, 0.12), transparent 70%);
+.voice-play-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 550;
+  transition: all 150ms ease;
+}
+
+.voice-play-btn:hover {
+  background: var(--mint);
+  color: var(--primary);
+  border-color: var(--border);
+}
+
+.voice-play-btn.playing {
+  color: var(--primary);
+  background: var(--teal-bg);
+  border-color: var(--primary);
+}
+
+/* WhatsApp & Quick Follow-Up Actions */
+.action-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.whatsapp-action-box {
+  background: rgba(37, 211, 102, 0.06);
+  border: 1px solid rgba(37, 211, 102, 0.28);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.whatsapp-action-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: #128c7e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.whatsapp-message-preview {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  font-family: inherit;
+}
+
+.whatsapp-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.whatsapp-btn {
+  background: #25d366;
+  color: #ffffff;
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.whatsapp-btn:hover {
+  background: #1eb956;
+  transform: translateY(-1px);
 }
 
 .app-shell {
