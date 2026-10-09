@@ -15,7 +15,19 @@ const sources:Record<PromptId,string[]>={today:["EVD-INV-1023","EVD-STOCK","EVD-
 export const assistantService: AssistantService = {
   async ask(question, language, promptId) {
     const id = promptId ?? classifyQuestion(question);
-    
+
+    if (promptId && promptId !== "unknown") {
+      await sleep(200);
+      return {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: responseText(id, language),
+        promptId: id,
+        evidenceIds: sources[id],
+        createdAt: new Date().toISOString(),
+      };
+    }
+
     if (id === "unknown") {
       await sleep(200);
       return {
@@ -36,6 +48,7 @@ export const assistantService: AssistantService = {
         body: JSON.stringify({
           messages: [{ role: "user", content: question }],
         }),
+        signal: AbortSignal.timeout(2500),
       });
 
       if (res.ok) {
@@ -55,7 +68,7 @@ export const assistantService: AssistantService = {
       // Graceful fallback to local structured responses
     }
 
-    await sleep(600);
+    await sleep(200);
     return {
       id: crypto.randomUUID(),
       role: "assistant",

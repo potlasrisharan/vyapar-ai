@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CircleHelp, CreditCard, FileText, LayoutGrid, Users, Truck, Package, Receipt, Lightbulb, MessageSquare, Settings, Search, ChevronDown, ArrowUpRight, MoreHorizontal, Sparkles, X, Building2, CheckCircle2 } from "lucide-react";
+import { Bell, CircleHelp, CreditCard, FileText, LayoutGrid, Users, Truck, Package, Receipt, Lightbulb, MessageSquare, Settings, Search, ChevronDown, ArrowUpRight, MoreHorizontal, X, Building2, CheckCircle2 } from "lucide-react";
 import { useApp } from "@/components/app-provider";
 import { languages, type TranslationKey } from "@/lib/i18n";
 import type { Route, Language } from "@/lib/types";
@@ -44,7 +44,7 @@ export const navCategories: NavCategory[] = [
     label: "intelligence",
     items: [
       { route: "insights", icon: Lightbulb, count: 6 },
-      { route: "assistant", icon: MessageSquare, spark: true },
+      { route: "assistant", icon: MessageSquare },
     ],
   },
 ];
@@ -116,12 +116,6 @@ export function Shell({ children }: { children: ReactNode }) {
         {t("skipContent")}
       </a>
       
-      {/* Background radial ambient lights for high-end haptic depth */}
-      <div className="ambient-mesh" aria-hidden="true">
-        <div className="ambient-orb ambient-orb-1" />
-        <div className="ambient-orb ambient-orb-2" />
-      </div>
-
       <aside className="sidebar">
         <Link href="/" aria-label="VyaparAI overview" className="brand-link">
           <Brand />
@@ -132,7 +126,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div key={group.label} className="nav-group">
               <span className="workspace-label">{t(group.label as TranslationKey)}</span>
               <nav aria-label={group.label}>
-                {group.items.map(({ route, icon: Icon, count: badgeCount, spark }) => {
+                {group.items.map(({ route, icon: Icon, count: badgeCount }) => {
                   const isActive = current === route;
                   return (
                     <Link
@@ -144,7 +138,6 @@ export function Shell({ children }: { children: ReactNode }) {
                       <Icon size={17} className="nav-icon" />
                       <span className="nav-text">{t(route)}</span>
                       {badgeCount && <span className="nav-count">{badgeCount}</span>}
-                      {spark && <Sparkles size={13} className="nav-spark" />}
                     </Link>
                   );
                 })}
@@ -201,8 +194,8 @@ export function Shell({ children }: { children: ReactNode }) {
                 <CreditCard size={13} />
                 <span>Payments</span>
               </Link>
-              <Link href="/assistant" className={`quick-pill copilot-pill ${current === "assistant" ? "active" : ""}`}>
-                <Sparkles size={13} />
+              <Link href="/assistant" className={`quick-pill ${current === "assistant" ? "active" : ""}`}>
+                <MessageSquare size={13} />
                 <span>Ask AI</span>
               </Link>
             </nav>

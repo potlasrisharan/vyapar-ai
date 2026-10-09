@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, ArrowUpRight, FileText, Lightbulb, Package, Plus, Sparkles, Wallet, Zap, MessageSquare, Mic, MicOff, Volume2, Loader2 } from "lucide-react";
+import { ArrowUp, ArrowUpRight, FileText, Lightbulb, Package, Plus, Wallet, Zap, MessageSquare, Mic, MicOff, Volume2, Loader2 } from "lucide-react";
 import { useApp } from "@/components/app-provider";
 import { assistantService } from "@/lib/services";
 import { promptKeys,responseText } from "@/lib/mock/assistant";
@@ -133,7 +133,7 @@ export function AssistantPage(){
         <div className="conversation-scroll">
           {!conversation.messages.length ? (
             <div className="assistant-welcome">
-              <div className="assistant-emblem"><Sparkles size={28}/></div>
+              <div className="assistant-emblem"><MessageSquare size={28}/></div>
               <span className="eyebrow">{t("copilot")}</span>
               <h2>{t("copilotIntro")}</h2>
               <p>{t("copilotDescription")}</p>
@@ -153,7 +153,7 @@ export function AssistantPage(){
                   <article className={`message ${m.role}`} key={m.id}>
                     <div className="message-label" style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%"}}>
                       <div style={{display:"flex",alignItems:"center",gap:"0.5rem"}}>
-                        {m.role==="assistant"?<Sparkles size={16}/>:<span className="avatar tiny">RS</span>}
+                        {m.role==="assistant"?<MessageSquare size={16}/>:<span className="avatar tiny">RS</span>}
                         <strong>{m.role==="assistant"?"VyaparAI (Sarvam 105B)":t("yourQuestion")}</strong>
                       </div>
                       {m.role==="assistant" && (
