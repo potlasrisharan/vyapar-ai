@@ -12,6 +12,7 @@ import 'package:vyparai_mobile/features/inventory/presentation/screens/inventory
 import 'package:vyparai_mobile/features/insights/presentation/screens/insights_screen.dart';
 import 'package:vyparai_mobile/features/settings/presentation/screens/settings_screen.dart';
 import 'package:vyparai_mobile/features/documents/presentation/screens/documents_screen.dart';
+import 'package:vyparai_mobile/features/assistant/presentation/screens/assistant_screen.dart';
 
 void main() {
   Widget createTestWidget(Widget child) {
@@ -211,6 +212,52 @@ void main() {
       expect(updatedData.invoices.length, initialInvoices + 1);
       expect(updatedData.documents.length, initialDocs + 1);
       expect(find.textContaining('Sarvam Doc AI Extraction Successful'), findsOneWidget);
+    });
+
+    testWidgets('10. Assistant Screen queries RAG architecture and delivers grounded facts fast', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final container = ProviderContainer();
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: AssistantScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Check Rigid RAG UI indicators
+      expect(find.text('AI Voice Copilot'), findsOneWidget);
+      expect(find.textContaining('Rigid RAG Active'), findsOneWidget);
+      expect(find.textContaining('Zero-Fabrication RAG'), findsOneWidget);
+      expect(find.text('RAG Grounded Fact'), findsWidgets);
+
+      // Verify quick prompt exists and trigger it
+      expect(find.text('Aaj ki udhari kitni hai?'), findsOneWidget);
+      await tester.tap(find.text('Aaj ki udhari kitni hai?'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+
+      // Verify user message sent and assistant answered with RAG grounded facts
+      expect(find.text('Aaj ki udhari kitni hai?'), findsWidgets);
+      expect(find.textContaining('Rahul Traders'), findsWidgets);
+      expect(find.textContaining('INV-1038'), findsWidgets);
+      expect(find.text('Ref: INV-1038'), findsWidgets);
+
+      // Query explicit invoice ID from RAG database
+      final textField = find.byType(TextField);
+      await tester.enterText(textField, 'Status of INV-1038');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('INV-1038'), findsWidgets);
+      expect(find.textContaining('44840'), findsWidgets);
     });
   });
 }

@@ -8,6 +8,20 @@ import '../domain/entities.dart';
 // Use --dart-define=API_BASE_URL=https://your-amplify-url.aws.amplifyapp.com
 const String _defaultBaseUrl = 'http://localhost:3000';
 
+class AiChatResult {
+  const AiChatResult({
+    required this.content,
+    this.evidenceIds = const [],
+    this.provider,
+    this.isGrounded = false,
+  });
+
+  final String content;
+  final List<String> evidenceIds;
+  final String? provider;
+  final bool isGrounded;
+}
+
 class ApiService {
   ApiService({String? baseUrl}) {
     _dio = Dio(BaseOptions(
@@ -25,8 +39,8 @@ class ApiService {
 
   late final Dio _dio;
 
-  /// POST /api/ai/chat — Sarvam 105B + Groq fallback
-  Future<String> chat({
+  /// POST /api/ai/chat — Sarvam 105B + Groq fallback + Rigid RAG grounding
+  Future<AiChatResult> chatDetailed({
     required String question,
     required Language language,
     String? promptId,
@@ -41,7 +55,36 @@ class ApiService {
       if (context != null) 'context': context,
     });
     final data = res.data as Map<String, dynamic>;
-    return ((data['content'] ?? data['text'] ?? '') as String).trim();
+    final content = ((data['content'] ?? data['text'] ?? '') as String).trim();
+    final rawEvidence = data['evidenceIds'];
+    final evidenceIds = rawEvidence is List
+        ? rawEvidence.map((e) => e.toString()).toList()
+        : const <String>[];
+    final provider = data['provider'] as String?;
+    final isGrounded = data['isGrounded'] == true;
+
+    return AiChatResult(
+      content: content,
+      evidenceIds: evidenceIds,
+      provider: provider,
+      isGrounded: isGrounded,
+    );
+  }
+
+  /// Convenience wrapper returning plain text
+  Future<String> chat({
+    required String question,
+    required Language language,
+    String? promptId,
+    Map<String, dynamic>? context,
+  }) async {
+    final res = await chatDetailed(
+      question: question,
+      language: language,
+      promptId: promptId,
+      context: context,
+    );
+    return res.content;
   }
 
   /// POST /api/ai/voice/stt — Sarvam Saaras STT

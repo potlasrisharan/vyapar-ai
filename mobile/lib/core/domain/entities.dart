@@ -329,6 +329,8 @@ class ChatMessage {
     required this.evidenceIds,
     required this.createdAt,
     this.promptId,
+    this.provider,
+    this.isGrounded = false,
   });
 
   final String id;
@@ -337,6 +339,8 @@ class ChatMessage {
   final List<String> evidenceIds;
   final DateTime createdAt;
   final PromptId? promptId;
+  final String? provider;
+  final bool isGrounded;
 }
 
 class Conversation {
