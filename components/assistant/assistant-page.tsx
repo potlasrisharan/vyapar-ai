@@ -32,64 +32,97 @@ export function AssistantPage(){
   useEffect(()=>{end.current?.scrollIntoView({behavior:"instant",block:"nearest"});},[conversation.messages.length,busy]);
 
   async function toggleRecording(){
+    const win=typeof window!=="undefined"?(window as unknown as {SpeechRecognition?:any;webkitSpeechRecognition?:any}):null;
+    const SpeechRec=win?.SpeechRecognition||win?.webkitSpeechRecognition;
+
     if(recording){
+      // User clicked stop
+      setRecording(false);
       if(recognitionRef.current){
         try{recognitionRef.current.stop();}catch{}
+        recognitionRef.current=null;
       }
       if(mediaRecorder.current&&mediaRecorder.current.state!=="inactive"){
         try{mediaRecorder.current.stop();}catch{}
       }
-      setRecording(false);
+      const capturedText=(webTranscriptRef.current||input).trim();
+      if(capturedText){
+        setInput(capturedText);
+        void ask(capturedText);
+      }
       return;
     }
 
+    // User clicked start
     webTranscriptRef.current="";
-    const win=typeof window!=="undefined"?(window as unknown as {SpeechRecognition?:any;webkitSpeechRecognition?:any}):null;
-    const SpeechRec=win?.SpeechRecognition||win?.webkitSpeechRecognition;
 
-    // Start browser in-build Web Speech Recognition as parallel capture / fallback
     if(SpeechRec){
+      // 1. Primary: Native Browser Web Speech API
       try{
         const rec=new SpeechRec();
         rec.continuous=true;
         rec.interimResults=true;
         rec.lang=lang==="hi"?"hi-IN":lang==="hinglish"?"hi-IN":"en-IN";
+
+        rec.onstart=()=>{
+          setRecording(true);
+        };
+
         rec.onresult=(event:any)=>{
-          let str="";
+          let fullText="";
           for(let i=0;i<event.results.length;++i){
-            str+=event.results[i][0].transcript;
+            fullText+=event.results[i][0].transcript;
           }
-          if(str.trim()){
-            webTranscriptRef.current=str.trim();
-            setInput(str.trim());
+          const trimmed=fullText.trim();
+          if(trimmed){
+            webTranscriptRef.current=trimmed;
+            setInput(trimmed);
           }
         };
+
         rec.onerror=(e:any)=>{
           console.warn("Web Speech API notice:",e?.error||e);
+          if(e?.error==="not-allowed"||e?.error==="service-not-allowed"){
+            setRecording(false);
+            recognitionRef.current=null;
+          }
         };
+
         rec.onend=()=>{
-          isWebSpeechActive.current=false;
+          setRecording(false);
+          recognitionRef.current=null;
         };
-        rec.start();
+
         recognitionRef.current=rec;
-        isWebSpeechActive.current=true;
-      }catch(e){
-        console.warn("Web Speech recognition init notice:",e);
+        rec.start();
+        return;
+      }catch(err){
+        console.warn("Web Speech start failed, falling back to MediaRecorder:",err);
       }
     }
 
+    // 2. Fallback: MediaRecorder + Server STT (for browsers like Firefox without Web Speech)
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      const recorder=new MediaRecorder(stream);
+      const mimeType=MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "";
+      const recorder=mimeType?new MediaRecorder(stream,{mimeType}):new MediaRecorder(stream);
       audioChunks.current=[];
-      recorder.ondataavailable=(e)=>{if(e.data.size>0)audioChunks.current.push(e.data);};
+
+      recorder.ondataavailable=(e)=>{
+        if(e.data.size>0)audioChunks.current.push(e.data);
+      };
+
       recorder.onstop=async()=>{
         stream.getTracks().forEach(t=>t.stop());
-        let finalTranscript="";
-        const audioBlob=new Blob(audioChunks.current,{type:"audio/wav"});
+        const ext=mimeType.includes("webm")?"webm":"wav";
+        const audioBlob=new Blob(audioChunks.current,{type:mimeType||"audio/wav"});
         if(audioBlob.size>0){
           const formData=new FormData();
-          formData.append("file",audioBlob,"recording.wav");
+          formData.append("file",audioBlob,`recording.${ext}`);
           formData.append("language_code",lang==="hi"?"hi-IN":"en-IN");
           setBusy(true);
           try{
@@ -97,63 +130,25 @@ export function AssistantPage(){
             if(res.ok){
               const json=await res.json();
               if(json.transcript&&json.transcript.trim()){
-                finalTranscript=json.transcript.trim();
+                const text=json.transcript.trim();
+                setInput(text);
+                void ask(text);
               }
             }
           }catch(e){
-            console.warn("Server STT error, falling back to Web Speech:",e);
+            console.warn("Server STT error:",e);
           }finally{
             setBusy(false);
           }
         }
-
-        // Fallback to in-build Web Speech API transcript if server STT failed or was empty
-        if(!finalTranscript&&webTranscriptRef.current.trim()){
-          finalTranscript=webTranscriptRef.current.trim();
-        }
-
-        if(finalTranscript.trim()){
-          setInput(finalTranscript.trim());
-          void ask(finalTranscript.trim());
-        }
       };
+
       mediaRecorder.current=recorder;
       recorder.start();
       setRecording(true);
     }catch(err){
-      console.warn("MediaRecorder/getUserMedia unavailable, checking Web Speech fallback:",err);
-      if(isWebSpeechActive.current){
-        setRecording(true);
-      }else if(SpeechRec){
-        try{
-          const standalone=new SpeechRec();
-          standalone.continuous=false;
-          standalone.interimResults=true;
-          standalone.lang=lang==="hi"?"hi-IN":"en-IN";
-          setRecording(true);
-          standalone.onresult=(ev:any)=>{
-            let res="";
-            for(let i=0;i<ev.results.length;i++)res+=ev.results[i][0].transcript;
-            if(res.trim()){
-              setInput(res.trim());
-              webTranscriptRef.current=res.trim();
-            }
-          };
-          standalone.onend=()=>{
-            setRecording(false);
-            if(webTranscriptRef.current.trim()){
-              void ask(webTranscriptRef.current.trim());
-            }
-          };
-          standalone.start();
-          recognitionRef.current=standalone;
-        }catch(webErr){
-          console.error("Standalone Web Speech error:",webErr);
-          setRecording(false);
-        }
-      }else{
-        setRecording(false);
-      }
+      console.warn("Microphone access unavailable:",err);
+      setRecording(false);
     }
   }
 
