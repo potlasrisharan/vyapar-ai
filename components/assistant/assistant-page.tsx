@@ -4,6 +4,7 @@ import { ArrowUp, ArrowUpRight, FileText, Lightbulb, Package, Plus, Wallet, Zap,
 import { useApp } from "@/components/app-provider";
 import { assistantService } from "@/lib/services";
 import { promptKeys,responseText } from "@/lib/mock/assistant";
+import { businessTotals } from "@/lib/mock/business";
 import type { Conversation, PromptId } from "@/lib/types";
 import { Button, Card, EmptyState, PageHeading } from "@/components/ui";
 import { money } from "@/lib/utils/format";
@@ -20,6 +21,9 @@ export function AssistantPage(){
   const [playingId,setPlayingId]=useState<string|null>(null);
   const mediaRecorder=useRef<MediaRecorder|null>(null);
   const audioChunks=useRef<Blob[]>([]);
+  const recognitionRef=useRef<any>(null);
+  const webTranscriptRef=useRef<string>("");
+  const isWebSpeechActive=useRef<boolean>(false);
   const end=useRef<HTMLDivElement>(null);
   const generation=useRef(0);
   const active=useRef(true);
@@ -29,47 +33,155 @@ export function AssistantPage(){
 
   async function toggleRecording(){
     if(recording){
-      mediaRecorder.current?.stop();
+      if(recognitionRef.current){
+        try{recognitionRef.current.stop();}catch{}
+      }
+      if(mediaRecorder.current&&mediaRecorder.current.state!=="inactive"){
+        try{mediaRecorder.current.stop();}catch{}
+      }
       setRecording(false);
       return;
     }
+
+    webTranscriptRef.current="";
+    const win=typeof window!=="undefined"?(window as unknown as {SpeechRecognition?:any;webkitSpeechRecognition?:any}):null;
+    const SpeechRec=win?.SpeechRecognition||win?.webkitSpeechRecognition;
+
+    // Start browser in-build Web Speech Recognition as parallel capture / fallback
+    if(SpeechRec){
+      try{
+        const rec=new SpeechRec();
+        rec.continuous=true;
+        rec.interimResults=true;
+        rec.lang=lang==="hi"?"hi-IN":lang==="hinglish"?"hi-IN":"en-IN";
+        rec.onresult=(event:any)=>{
+          let str="";
+          for(let i=0;i<event.results.length;++i){
+            str+=event.results[i][0].transcript;
+          }
+          if(str.trim()){
+            webTranscriptRef.current=str.trim();
+            setInput(str.trim());
+          }
+        };
+        rec.onerror=(e:any)=>{
+          console.warn("Web Speech API notice:",e?.error||e);
+        };
+        rec.onend=()=>{
+          isWebSpeechActive.current=false;
+        };
+        rec.start();
+        recognitionRef.current=rec;
+        isWebSpeechActive.current=true;
+      }catch(e){
+        console.warn("Web Speech recognition init notice:",e);
+      }
+    }
+
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
       const recorder=new MediaRecorder(stream);
       audioChunks.current=[];
       recorder.ondataavailable=(e)=>{if(e.data.size>0)audioChunks.current.push(e.data);};
       recorder.onstop=async()=>{
+        stream.getTracks().forEach(t=>t.stop());
+        let finalTranscript="";
         const audioBlob=new Blob(audioChunks.current,{type:"audio/wav"});
-        const formData=new FormData();
-        formData.append("file",audioBlob,"recording.wav");
-        formData.append("language_code",lang==="hi"?"hi-IN":"en-IN");
-        setBusy(true);
-        try{
-          const res=await fetch("/api/ai/voice/stt",{method:"POST",body:formData});
-          if(res.ok){
-            const json=await res.json();
-            if(json.transcript){
-              setInput(json.transcript);
-              void ask(json.transcript);
+        if(audioBlob.size>0){
+          const formData=new FormData();
+          formData.append("file",audioBlob,"recording.wav");
+          formData.append("language_code",lang==="hi"?"hi-IN":"en-IN");
+          setBusy(true);
+          try{
+            const res=await fetch("/api/ai/voice/stt",{method:"POST",body:formData});
+            if(res.ok){
+              const json=await res.json();
+              if(json.transcript&&json.transcript.trim()){
+                finalTranscript=json.transcript.trim();
+              }
             }
+          }catch(e){
+            console.warn("Server STT error, falling back to Web Speech:",e);
+          }finally{
+            setBusy(false);
           }
-        }catch(e){
-          console.error("STT error:",e);
-        }finally{
-          setBusy(false);
+        }
+
+        // Fallback to in-build Web Speech API transcript if server STT failed or was empty
+        if(!finalTranscript&&webTranscriptRef.current.trim()){
+          finalTranscript=webTranscriptRef.current.trim();
+        }
+
+        if(finalTranscript.trim()){
+          setInput(finalTranscript.trim());
+          void ask(finalTranscript.trim());
         }
       };
       mediaRecorder.current=recorder;
       recorder.start();
       setRecording(true);
     }catch(err){
-      console.warn("Microphone not allowed or unavailable",err);
+      console.warn("MediaRecorder/getUserMedia unavailable, checking Web Speech fallback:",err);
+      if(isWebSpeechActive.current){
+        setRecording(true);
+      }else if(SpeechRec){
+        try{
+          const standalone=new SpeechRec();
+          standalone.continuous=false;
+          standalone.interimResults=true;
+          standalone.lang=lang==="hi"?"hi-IN":"en-IN";
+          setRecording(true);
+          standalone.onresult=(ev:any)=>{
+            let res="";
+            for(let i=0;i<ev.results.length;i++)res+=ev.results[i][0].transcript;
+            if(res.trim()){
+              setInput(res.trim());
+              webTranscriptRef.current=res.trim();
+            }
+          };
+          standalone.onend=()=>{
+            setRecording(false);
+            if(webTranscriptRef.current.trim()){
+              void ask(webTranscriptRef.current.trim());
+            }
+          };
+          standalone.start();
+          recognitionRef.current=standalone;
+        }catch(webErr){
+          console.error("Standalone Web Speech error:",webErr);
+          setRecording(false);
+        }
+      }else{
+        setRecording(false);
+      }
     }
   }
 
+  function fallbackWebTTS(text:string){
+    if(typeof window!=="undefined"&&"speechSynthesis" in window){
+      try{
+        window.speechSynthesis.cancel();
+        const utterance=new SpeechSynthesisUtterance(text.slice(0,350));
+        utterance.lang=lang==="hi"?"hi-IN":"en-IN";
+        utterance.onend=()=>setPlayingId(null);
+        utterance.onerror=()=>setPlayingId(null);
+        window.speechSynthesis.speak(utterance);
+        return;
+      }catch{}
+    }
+    setPlayingId(null);
+  }
+
   async function playVoice(id:string,text:string){
-    if(playingId===id){setPlayingId(null);return;}
+    if(playingId===id){
+      if(typeof window!=="undefined"&&"speechSynthesis" in window){
+        window.speechSynthesis.cancel();
+      }
+      setPlayingId(null);
+      return;
+    }
     setPlayingId(id);
+    let played=false;
     try{
       const res=await fetch("/api/ai/voice/tts",{
         method:"POST",
@@ -81,15 +193,18 @@ export function AssistantPage(){
         if(json.audio){
           const audio=new Audio(`data:audio/wav;base64,${json.audio}`);
           audio.onended=()=>setPlayingId(null);
-          audio.onerror=()=>setPlayingId(null);
+          audio.onerror=()=>fallbackWebTTS(text);
           await audio.play();
+          played=true;
           return;
         }
       }
     }catch(err){
-      console.error("TTS error:",err);
+      console.warn("TTS error, falling back to Web Speech:",err);
     }
-    setPlayingId(null);
+    if(!played){
+      fallbackWebTTS(text);
+    }
   }
 
   async function ask(question:string,id?:PromptId){
@@ -134,6 +249,7 @@ export function AssistantPage(){
   }
 
   if(!data)return null;
+  const totals=businessTotals(data);
 
   return <>
     <PageHeading title="VyaparAI" subtitle={t("assistantSubtitle")}>
@@ -173,8 +289,8 @@ export function AssistantPage(){
                           type="button"
                           className={`voice-play-btn ${playingId===m.id?"playing":""}`}
                           onClick={()=>void playVoice(m.id, displayText)}
-                          aria-label="Listen via Sarvam Voice"
-                          title="Listen with Sarvam Bulbul TTS"
+                          aria-label="Listen via Voice"
+                          title="Listen with Voice (Sarvam / Web Voice)"
                         >
                           {playingId===m.id ? <Loader2 size={13} className="spin"/> : <Volume2 size={13}/>}
                           <span>{playingId===m.id ? "Playing…" : "Listen"}</span>
@@ -208,7 +324,7 @@ export function AssistantPage(){
               {recording ? (
                 <span className="recording-status">
                   <span className="rec-dot"/>
-                  Recording… (Saaras STT)
+                  Recording… (Voice Input active)
                 </span>
               ) : (
                 <>
@@ -222,7 +338,7 @@ export function AssistantPage(){
                 type="button"
                 className={`voice-record-btn ${recording?"recording":""}`}
                 onClick={()=>void toggleRecording()}
-                title={recording?"Stop recording":"Voice input (Sarvam Saaras STT)"}
+                title={recording?"Stop recording":"Voice input (Sarvam STT + Web Speech fallback)"}
                 aria-label={recording?"Stop recording":"Record voice query"}
               >
                 {recording ? <MicOff size={15}/> : <Mic size={15}/>}
@@ -240,17 +356,17 @@ export function AssistantPage(){
           <h3>{t("business")}</h3>
           <p>{t("location")}</p>
           <div className="context-summary">
-            <div><span>{t("revenue")}</span><strong>{money(482000)}</strong></div>
-            <div><span>{t("outstanding")}</span><strong>{money(82000)}</strong></div>
-            <div><span>{t("lowStock")}</span><strong>5 {t("products")}</strong></div>
+            <div><span>{t("revenue")}</span><strong>{money(totals.revenue)}</strong></div>
+            <div><span>{t("outstanding")}</span><strong>{money(totals.outstanding)}</strong></div>
+            <div><span>{t("lowStock")}</span><strong>{totals.lowStock} {t("products")}</strong></div>
           </div>
           <span className="context-period">{t("aboutMonth")}</span>
         </Card>
         <Card>
           <span className="eyebrow">{t("records")}</span>
-          <div className="connected-record"><FileText size={17}/><span>40 {t("invoices")}</span><span className="status-dot"/></div>
-          <div className="connected-record"><Package size={17}/><span>30 {t("products")}</span><span className="status-dot"/></div>
-          <div className="connected-record"><Wallet size={17}/><span>11 {t("expenses")}</span><span className="status-dot"/></div>
+          <div className="connected-record"><FileText size={17}/><span>{data.invoices.length} {t("invoices")}</span><span className="status-dot"/></div>
+          <div className="connected-record"><Package size={17}/><span>{data.products.length} {t("products")}</span><span className="status-dot"/></div>
+          <div className="connected-record"><Wallet size={17}/><span>{data.expenses.length} {t("expenses")}</span><span className="status-dot"/></div>
         </Card>
         {conversation.messages.length>0&&<Card><span className="eyebrow">{t("suggested")}</span>{prompts.map(id=><button className="context-prompt" key={id} disabled={busy} onClick={()=>void ask(t(promptKeys[id]),id)}><MessageSquare size={14}/>{t(promptKeys[id])}</button>)}</Card>}
         {local.conversations.length>0&&<Card><span className="eyebrow">{t("history")}</span>{local.conversations.slice(0,4).map(c=><button className="history-item" key={c.id} onClick={()=>{generation.current++;setBusy(false);setConversation(c);}}>{c.messages[0]?.promptId&&c.messages[0].promptId!=="unknown"?t(promptKeys[c.messages[0].promptId]):c.messages[0]?.text}</button>)}</Card>}

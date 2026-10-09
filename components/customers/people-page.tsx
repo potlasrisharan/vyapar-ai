@@ -14,7 +14,7 @@ export function PeoplePage({vendor=false}:{vendor?:boolean}){
 
   const people=(vendor?data.vendors:data.customers).filter(p=>p.name.toLowerCase().includes(query.toLowerCase()));
   const stats=(id:string)=>{
-    if(!vendor)return customerSummary(id);
+    if(!vendor)return customerSummary(id, data);
     const bills=data.purchaseBills.filter(b=>b.vendorId===id);
     return {
       purchases:bills.reduce((s,b)=>s+b.total,0),
