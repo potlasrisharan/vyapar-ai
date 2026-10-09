@@ -262,6 +262,11 @@ export interface LocalState {
   uploadedDocuments: Document[];
   conversations: Conversation[];
   auditLogs?: AuditLogEntry[];
+  customPayments?: Payment[];
+  customInvoices?: Invoice[];
+  customCustomers?: Customer[];
+  customVendors?: Vendor[];
+  customProducts?: Product[];
 }
 
 export interface BusinessService {

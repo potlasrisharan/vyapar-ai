@@ -3,6 +3,7 @@ export type DomainEventType =
   | "DocumentProcessed"
   | "InvoiceCreated"
   | "InvoicePaid"
+  | "PaymentReceived"
   | "InvoiceOverdue"
   | "InventoryLow"
   | "ExpenseCreated"

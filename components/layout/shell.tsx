@@ -186,7 +186,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <header className="header">
           <div className="header-left">
             <div className="breadcrumb">
-              <span className="desktop-only text-muted">{t("workspace")}</span>
+              <span className="desktop-only muted">{t("workspace")}</span>
               <span className="breadcrumb-slash desktop-only">/</span>
               <strong className="breadcrumb-current">{t(current)}</strong>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ArrowUpRight, CheckCircle2, CircleDollarSign, Landmark, QrCode, Wallet } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, CircleDollarSign, Landmark, QrCode, Wallet, Plus } from "lucide-react";
 import { useApp } from "@/components/app-provider";
 import { Badge, Button, Card, DataTable, EmptyState, MetricCard, PageHeading, SearchField } from "@/components/ui";
 import { date, money } from "@/lib/utils/format";
@@ -32,7 +32,11 @@ export function PaymentsPage() {
       <PageHeading
         title={t("payments")}
         subtitle={t("paymentsSubtitle")}
-      />
+      >
+        <Button variant="primary" onClick={()=>open({kind:"recordPayment"})}>
+          <Plus size={16}/> {t("recordPayment")}
+        </Button>
+      </PageHeading>
 
       <div className="metrics-strip four">
         <MetricCard

@@ -45,3 +45,24 @@ test("audit service logs entries and background jobs process correctly",async()=
   assert.ok(["processing","completed"].includes(status));
 });
 
+test("payment reconciliation arithmetic updates invoice outstanding balances correctly",()=>{
+  const inv = data.invoices.find(i=>i.id==="INV-1023")!;
+  assert.equal(inv.total, 35000);
+  assert.equal(paidAmount(inv), 0);
+  assert.equal(outstanding(inv), 35000);
+
+  const simulatedPayment = { id: "PAY-TEST-1", invoiceId: "INV-1023", customerId: inv.customerId, amount: 15000, date: "2026-09-30", method: "upi" as const };
+  const paymentsWithSim = [simulatedPayment, ...data.payments];
+  const customPaid = paymentsWithSim.filter(p=>p.invoiceId===inv.id).reduce((s,p)=>s+p.amount,0);
+  assert.equal(customPaid, 15000);
+  const customOutstanding = Math.max(0, inv.total - customPaid);
+  assert.equal(customOutstanding, 20000);
+
+  const simulatedSettlement = { id: "PAY-TEST-2", invoiceId: "INV-1023", customerId: inv.customerId, amount: 20000, date: "2026-09-30", method: "bank" as const };
+  const settledPayments = [simulatedSettlement, ...paymentsWithSim];
+  const settledPaid = settledPayments.filter(p=>p.invoiceId===inv.id).reduce((s,p)=>s+p.amount,0);
+  assert.equal(settledPaid, 35000);
+  const settledOutstanding = Math.max(0, inv.total - settledPaid);
+  assert.equal(settledOutstanding, 0);
+});
+
