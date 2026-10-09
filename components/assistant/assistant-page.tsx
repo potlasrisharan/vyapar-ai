@@ -92,8 +92,6 @@ export function AssistantPage(){
     setPlayingId(null);
   }
 
-  if(!data)return null;
-
   async function ask(question:string,id?:PromptId){
     if(!question.trim()||busy)return;
     const run=++generation.current;
@@ -116,6 +114,17 @@ export function AssistantPage(){
     }
   }
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const q = new URLSearchParams(window.location.search).get("q");
+      if (q && q.trim()) {
+        window.history.replaceState({}, "", "/assistant");
+        void ask(q.trim());
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function newChat(){
     generation.current++;
     setBusy(false);
@@ -123,6 +132,8 @@ export function AssistantPage(){
     setConversation({id:crypto.randomUUID(),messages:[]});
     setInput("");
   }
+
+  if(!data)return null;
 
   return <>
     <PageHeading title="VyaparAI" subtitle={t("assistantSubtitle")}>

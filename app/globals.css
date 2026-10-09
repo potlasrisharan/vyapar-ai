@@ -1,8 +1,11 @@
+@import url('https://fonts.cdnfonts.com/css/clash-grotesk');
 @import url('https://api.fontshare.com/v2/css?f[]=clash-grotesk@400,500,600,700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
+  --accent-purple: #8B5CF6;
+  --accent-teal: #14B8A6;
   --bg: #ffffff;
   --surface: #ffffff;
   --surface-raised: #f1f5f9;
@@ -159,15 +162,25 @@ svg { flex-shrink: 0; }
 strong { font-weight: 650; }
 p { color: var(--secondary); }
 
-.clash-font { font-family: var(--font-heading); }
-.custom-shadow { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); }
+.clash-font { font-family: 'ClashGrotesk', 'Clash Grotesk', var(--font-heading); }
+.custom-shadow { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }
+.dark .custom-shadow { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3); }
+.transition-theme { transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease; }
 .bg-brand-purple { background-color: var(--brand-purple); }
 .text-brand-purple { color: var(--brand-purple); }
 .bg-brand-teal { background-color: var(--brand-teal); }
 .text-brand-teal { color: var(--brand-teal); }
 .bg-brand-dark { background-color: var(--brand-dark); }
-.sidebar-active { background-color: rgba(139, 92, 246, 0.12); color: var(--brand-purple); }
-.dark .sidebar-active, html[data-theme="dark"] .sidebar-active { background-color: rgba(20, 184, 166, 0.16); color: var(--brand-teal); }
+.sidebar-active {
+  background-color: rgba(139, 92, 246, 0.08);
+  color: var(--accent-purple);
+  border-right: 3px solid var(--accent-purple);
+}
+.dark .sidebar-active, html[data-theme="dark"] .sidebar-active {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border-right: 3px solid #8B5CF6;
+}
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .skip-link { position: fixed; left: 20px; top: -60px; z-index: 100; background: var(--primary); color: white; padding: 12px 18px; border-radius: var(--radius-sm); font-weight: 600; box-shadow: var(--shadow-lg); transition: top 200ms cubic-bezier(0.32, 0.72, 0, 1); }
