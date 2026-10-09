@@ -13,11 +13,13 @@ export function classifyQuestion(q:string):PromptId{if(/today|aaj|आज|priorit
 export function responseText(id:PromptId,lang:Language){return id==="unknown"?translate(lang,"unsupported"):responses[id][lang];}
 const sources:Record<PromptId,string[]>={today:["EVD-INV-1023","EVD-STOCK","EVD-ELECTRICITY"],owes:["EVD-INV-1023"],expenses:["EVD-ELECTRICITY"],stock:["EVD-STOCK","EVD-OUTOFSTOCK"],summary:["EVD-INV-1023","EVD-STOCK","EVD-ELECTRICITY"],unknown:[]};
 export const assistantService: AssistantService = {
-  async ask(question, language, promptId) {
+  async ask(question, language, promptId, context) {
     const id = promptId ?? classifyQuestion(question);
+    const hasUploadedDocs = Array.isArray(context?.uploadedDocuments) && context.uploadedDocuments.length > 0;
 
-    if (promptId && promptId !== "unknown") {
-      await sleep(200);
+    // Fast-path only for standard prompt chip clicks when no uploaded documents exist
+    if (promptId && promptId !== "unknown" && !hasUploadedDocs) {
+      await sleep(150);
       return {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -28,27 +30,16 @@ export const assistantService: AssistantService = {
       };
     }
 
-    if (id === "unknown") {
-      await sleep(200);
-      return {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text: responseText("unknown", language),
-        promptId: "unknown",
-        evidenceIds: [],
-        createdAt: new Date().toISOString(),
-      };
-    }
-
-    // Attempt real Sarvam AI endpoint first for business domain reasoning
+    // Call /api/ai/chat with question and dynamic context (Sarvam 105B)
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [{ role: "user", content: question }],
+          context: context || {},
         }),
-        signal: AbortSignal.timeout(2500),
+        signal: AbortSignal.timeout(12000),
       });
 
       if (res.ok) {
@@ -59,22 +50,28 @@ export const assistantService: AssistantService = {
             role: "assistant",
             text: data.content,
             promptId: id,
-            evidenceIds: sources[id] || [],
+            evidenceIds: data.evidenceIds || sources[id] || [],
             createdAt: new Date().toISOString(),
           };
         }
       }
-    } catch {
-      // Graceful fallback to local structured responses
+    } catch (err) {
+      console.warn("AI chat API fetch failed or timed out, falling back to local reasoning:", err);
     }
 
     await sleep(200);
+    const fallbackText = id === "unknown" && hasUploadedDocs
+      ? (language === "hi"
+          ? "आपके द्वारा अपलोड किए गए बिलों के आधार पर मैं आपका बहीखाता देख सकता हूँ। कृपया किसी विशिष्ट बिल या ग्राहक का नाम पूछें।"
+          : "Based on your uploaded bills, I can view your historical invoices. Ask me about any specific bill, party, or amount.")
+      : responseText(id, language);
+
     return {
       id: crypto.randomUUID(),
       role: "assistant",
-      text: responseText(id, language),
+      text: fallbackText,
       promptId: id,
-      evidenceIds: sources[id],
+      evidenceIds: sources[id] || [],
       createdAt: new Date().toISOString(),
     };
   },

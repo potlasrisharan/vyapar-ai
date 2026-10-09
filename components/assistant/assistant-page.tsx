@@ -104,7 +104,7 @@ export function AssistantPage(){
     setBusy(true);
     setFailed(false);
     try{
-      const reply=await assistantService.ask(question,lang,id);
+      const reply=await assistantService.ask(question,lang,id,{uploadedDocuments:local.uploadedDocuments,customInvoices:local.customInvoices});
       if(!active.current||run!==generation.current)return;
       const result={...next,messages:[...next.messages,reply]};
       setConversation(result);

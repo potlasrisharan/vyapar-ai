@@ -1,6 +1,7 @@
-// app/api/ai/chat/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { sarvamChat, ChatMessage } from '@/lib/services/sarvam';
+import { rigidRagDatabase } from '@/lib/services';
+import { queryFinTraceZF, createSampleAuthenticatedLedger } from '@/lib/fintrace-zf';
 
 const BUSINESS_CONTEXT = `You are VyaparAI, an intelligent AI Copilot for Indian MSMEs, specifically advising "Sharma Electronics", a consumer electronics retailer located in Kanpur, Uttar Pradesh.
 
@@ -147,10 +148,41 @@ function generateContextualFallback(messages: ChatMessage[]): { content: string;
   };
 }
 
+function buildDynamicBusinessContext(context?: any): string {
+  let prompt = BUSINESS_CONTEXT;
+  const docs = context?.uploadedDocuments || context?.uploadedInvoices || [];
+  const customInvoices = context?.customInvoices || [];
+
+  if (docs.length > 0 || customInvoices.length > 0) {
+    prompt += `\n\n--- USER-UPLOADED HISTORICAL INVOICES & DOCUMENTS ---\n`;
+    prompt += `The business owner has uploaded the following ${docs.length} historical invoices/bills into the app:\n`;
+
+    docs.forEach((doc: any, index: number) => {
+      const ext = doc.extractedData || {};
+      prompt += `${index + 1}. Document: "${doc.name || ext.invoiceNumber || 'Invoice'}"\n`;
+      prompt += `   - Invoice Number: ${ext.invoiceNumber || doc.relatedId || 'N/A'}\n`;
+      prompt += `   - Party / Customer / Vendor: ${ext.customer || ext.vendorName || 'N/A'}\n`;
+      prompt += `   - Date: ${ext.date || ext.invoiceDate || 'N/A'}${ext.dueDate ? `, Due Date: ${ext.dueDate}` : ''}\n`;
+      prompt += `   - Amount: ₹${ext.total || ext.totalAmount || 0} (Tax: ₹${ext.taxAmount || ((ext.cgst || 0) + (ext.sgst || 0))})\n`;
+      prompt += `   - Status: ${ext.paymentStatus || doc.status || 'completed'}\n`;
+      if (ext.items && Array.isArray(ext.items) && ext.items.length > 0) {
+        prompt += `   - Items: ${ext.items.map((it: any) => `${it.description || it.name} (${it.quantity || 1}x @ ₹${it.unitPrice || it.price || 0})`).join(', ')}\n`;
+      }
+    });
+
+    prompt += `\nCRITICAL CONTEXT INSTRUCTION:
+- You have complete awareness of all the user's uploaded invoices and old bills listed above.
+- When the user asks "what old invoices did I upload?", "how much is in my uploaded bills?", or mentions any vendor/product from these files, provide exact amounts, numbers, and facts from these records.
+- Advise the owner on cashflow, payment collection, and tax reconciliation taking into account both the store baseline and these newly uploaded invoices.`;
+  }
+  return prompt;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const messages: ChatMessage[] = body.messages || [];
+    const context = body.context;
 
     if (!messages.length) {
       return NextResponse.json(
@@ -159,22 +191,131 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Attempt Sarvam AI Indic LLM first
-    if (process.env.SARVAM_API_KEY) {
-      try {
-        const reply = await sarvamChat(messages, BUSINESS_CONTEXT);
+    const lastMessage = messages[messages.length - 1]?.content || "";
+
+    // 1. Ingest client uploaded documents into rigid RAG database
+    const docs = context?.uploadedDocuments || context?.uploadedInvoices || [];
+    if (Array.isArray(docs)) {
+      docs.forEach((doc: any) => {
+        const ext = doc.extractedData || {};
+        rigidRagDatabase.ingestInvoice({
+          id: ext.invoiceNumber || doc.relatedId || doc.name,
+          customer: ext.customer || ext.vendorName,
+          date: ext.date || ext.invoiceDate || new Date().toISOString().slice(0, 10),
+          dueDate: ext.dueDate,
+          total: Number(ext.total || ext.totalAmount || 0),
+          subtotal: ext.subtotal ? Number(ext.subtotal) : undefined,
+          tax: ext.taxAmount ? Number(ext.taxAmount) : undefined,
+          status: ext.paymentStatus || doc.status || "recorded",
+          gstin: ext.gstin,
+          items: ext.items || [],
+        });
+      });
+    }
+
+    // 2. FINTRACE-ZF Zero-Fabrication Mathematical Gate
+    if (/upi|pos|reconcil|bank match|merkle|audit proof/i.test(lastMessage)) {
+      const sampleLedger = createSampleAuthenticatedLedger();
+      const zfResult = queryFinTraceZF(
+        lastMessage,
+        { id: "usr-sharma", role: "merchant", permissions: ["read:transactions", "read:reconcile"] },
+        sampleLedger.records,
+        sampleLedger.bankRecords
+      );
+
+      if (zfResult.status === "VERIFIED_RELEASE") {
+        const isHindi = /कहा|क्या|कौन|बकाया|खर्च|बिजली|स्टॉक|नमस्ते|आज/i.test(lastMessage);
+        const isHinglish = /aaj|kya|kaun|bakaaya|bakaya|kharch|bijli|stock|karein|karo|batao/i.test(lastMessage);
+        const content = isHindi
+          ? `[FINTRACE-ZF सत्यापित परिणाम] ✅\nकुल राशि: ${zfResult.value.formattedAmount} (${zfResult.value.recordCount} सत्यापित रिकॉर्ड)\nप्रमाण आईडी: ${zfResult.claimId}\nमर्कल रूट: ${zfResult.proof.merkleRoot.slice(0, 16)}...\nसत्यापित लेन-देन: ${zfResult.proof.sourceRecordIds.join(", ")}`
+          : isHinglish
+          ? `[FINTRACE-ZF Verified Result] ✅\nTotal Amount: ${zfResult.value.formattedAmount} (${zfResult.value.recordCount} verified records)\nClaim ID: ${zfResult.claimId}\nMerkle Root: ${zfResult.proof.merkleRoot.slice(0, 16)}...\nVerified Records: ${zfResult.proof.sourceRecordIds.join(", ")}`
+          : `[FINTRACE-ZF Verified Result] ✅\nTotal Amount: ${zfResult.value.formattedAmount} across ${zfResult.value.recordCount} source-authenticated records.\nClaim ID: ${zfResult.claimId}\nMerkle Audit Root: ${zfResult.proof.merkleRoot.slice(0, 16)}...\nIncluded Transactions: ${zfResult.proof.sourceRecordIds.join(", ")}`;
+
         return NextResponse.json({
           role: 'assistant',
-          content: reply,
-          provider: 'Sarvam AI (sarvam-105b)',
-          evidenceIds: ['EVD-INV-1023', 'EVD-STOCK'],
+          content,
+          provider: 'FINTRACE-ZF Zero-Fabrication Engine',
+          evidenceIds: zfResult.proof.sourceRecordIds,
+          claimId: zfResult.claimId,
+          proof: zfResult.proof,
+          isGrounded: true,
         });
-      } catch (sarvamErr) {
-        console.warn('Sarvam API call failed, using deterministic MSME reasoning engine:', sarvamErr);
+      } else if (zfResult.status === "ABSTAIN") {
+        return NextResponse.json({
+          role: 'assistant',
+          content: `[FINTRACE-ZF ⊥ Abstain] Zero-Fabrication Gate rejected claim release.\nReason: ${zfResult.reason}\nDiscrepancies: ${zfResult.discrepancies.join("; ")}`,
+          provider: 'FINTRACE-ZF Zero-Fabrication Engine',
+          evidenceIds: [],
+          gateStatus: zfResult.gateStatus,
+          isGrounded: false,
+        });
       }
     }
 
-    // Contextual deterministic engine fallback
+    // 3. Rigid RAG Retrieval
+    const retrieval = rigidRagDatabase.retrieve(lastMessage);
+
+    let dynamicContext = buildDynamicBusinessContext(context);
+    if (retrieval.isGrounded) {
+      dynamicContext += `\n\n=== RETRIEVED VERIFIED EVIDENCE (STRICT GROUNDING) ===\n${retrieval.groundedContext}\n======================================================\nRIGID RAG CONSTRAINT: Answer the user's question ONLY and STRICTLY using the retrieved facts above. If the exact answer or specific numbers are not present in this evidence, state clearly: "This information is not present in the uploaded invoices or business records." Do not extrapolate or guess under any circumstances.`;
+    } else if (/invoice|bill|upload|purana|purane|bussiness|business|gstin|receipt|amount|price|cost/i.test(lastMessage)) {
+      dynamicContext += `\n\nSTRICT RAG GUARD: No verified records or uploaded invoices were found in the database matching this query. You MUST strictly reply: "This information is not present in the uploaded invoices or business records." Do not invent or estimate.`;
+    }
+
+    // 3. Attempt Sarvam AI Indic LLM (using SARVAM_CHAT_API_KEY)
+    if (process.env.SARVAM_CHAT_API_KEY || process.env.SARVAM_API_KEY) {
+      try {
+        const reply = await sarvamChat(messages, dynamicContext);
+        return NextResponse.json({
+          role: 'assistant',
+          content: reply,
+          provider: 'Sarvam AI (sarvam-105b-conversations)',
+          evidenceIds: retrieval.matchedChunks.map((c) => c.chunk.id),
+          isGrounded: retrieval.isGrounded,
+        });
+      } catch (sarvamErr) {
+        console.warn('Sarvam Chat API call failed, using deterministic rigid RAG engine:', sarvamErr);
+      }
+    }
+
+    // 4. Deterministic Rigid Fallback
+    const isHindi = /कहा|क्या|कौन|बकाया|खर्च|बिजली|स्टॉक|नमस्ते|आज/i.test(lastMessage);
+    const isHinglish = /aaj|kya|kaun|bakaaya|bakaya|kharch|bijli|stock|karein|karo|batao/i.test(lastMessage);
+
+    if (retrieval.isGrounded && retrieval.matchedChunks.length > 0) {
+      const topChunk = retrieval.matchedChunks[0].chunk;
+      const content = isHindi
+        ? `सत्यापित रिकॉर्ड के अनुसार:\n${topChunk.content}`
+        : isHinglish
+        ? `Verified record ke mutabik:\n${topChunk.content}`
+        : `According to verified business records:\n${topChunk.content}`;
+
+      return NextResponse.json({
+        role: 'assistant',
+        content,
+        provider: 'VyaparAI Rigid RAG Engine',
+        evidenceIds: retrieval.matchedChunks.map((c) => c.chunk.id),
+        isGrounded: true,
+      });
+    }
+
+    if (/upload|purana|purane|invoice|bill|gstin|bussiness|business/i.test(lastMessage)) {
+      const refusal = isHindi
+        ? `यह जानकारी अपलोड किए गए बिलों या व्यावसायिक रिकॉर्ड में उपलब्ध नहीं है।`
+        : isHinglish
+        ? `Yeh information upload kiye gaye invoices ya business records mein uplabdh nahi hai.`
+        : `This information is not present in the uploaded invoices or business records.`;
+
+      return NextResponse.json({
+        role: 'assistant',
+        content: refusal,
+        provider: 'VyaparAI Rigid RAG Engine',
+        evidenceIds: [],
+        isGrounded: false,
+      });
+    }
+
     const fallback = generateContextualFallback(messages);
 
     return NextResponse.json({
