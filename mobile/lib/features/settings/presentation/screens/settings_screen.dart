@@ -168,6 +168,20 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSizes.lg),
 
+          // Backend Server Connection
+          Text('Backend Server Connection', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSizes.sm),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.cloud_sync, color: AppColors.primary),
+              title: const Text('Backend API URL'),
+              subtitle: Text(ref.watch(apiServiceProvider).baseUrl),
+              trailing: const Icon(Icons.edit, size: 20),
+              onTap: () => _showEditBackendUrlDialog(context, ref),
+            ),
+          ),
+          const SizedBox(height: AppSizes.lg),
+
           // About
           const Center(
             child: Text(
@@ -175,6 +189,56 @@ class SettingsScreen extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary, fontSize: AppSizes.textXs),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditBackendUrlDialog(BuildContext context, WidgetRef ref) {
+    final currentUrl = ref.read(apiServiceProvider).baseUrl;
+    final controller = TextEditingController(text: currentUrl);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Configure Backend URL'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter the Next.js server URL (e.g. Mac Wi-Fi IP, Vercel, or Amplify):',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'http://172.26.40.186:3000',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newUrl = controller.text.trim();
+              if (newUrl.isNotEmpty) {
+                ref.read(apiServiceProvider).updateBaseUrl(newUrl);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Backend URL updated: $newUrl')),
+                );
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),

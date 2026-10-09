@@ -5,8 +5,8 @@ import 'package:dio/dio.dart';
 import '../domain/entities.dart';
 
 // Production URL — same backend, same API keys via server-side env vars
-// Use --dart-define=API_BASE_URL=https://your-amplify-url.aws.amplifyapp.com
-const String _defaultBaseUrl = 'http://localhost:3000';
+// Use --dart-define=API_BASE_URL=http://172.26.40.186:3000 or your cloud backend
+const String _defaultBaseUrl = 'http://172.26.40.186:3000';
 
 class AiChatResult {
   const AiChatResult({
@@ -38,6 +38,12 @@ class ApiService {
   }
 
   late final Dio _dio;
+
+  String get baseUrl => _dio.options.baseUrl;
+
+  void updateBaseUrl(String newUrl) {
+    _dio.options.baseUrl = newUrl.trim();
+  }
 
   /// POST /api/ai/chat — Sarvam 105B + Groq fallback + Rigid RAG grounding
   Future<AiChatResult> chatDetailed({
