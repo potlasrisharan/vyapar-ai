@@ -1,6 +1,5 @@
-// app/api/ai/ocr/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { sarvamExtractInvoice } from '@/lib/services/sarvam';
+import { unifiedExtractInvoice, generatePaymentReminderAI } from '@/lib/services/sarvam';
 
 export async function POST(req: NextRequest) {
   try {
@@ -86,13 +85,28 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const extraction = await sarvamExtractInvoice(textToParse);
+    const extraction = await unifiedExtractInvoice(textToParse);
+
+    let suggestedReminder = undefined;
+    if (extraction.totalAmount > 0) {
+      try {
+        suggestedReminder = await generatePaymentReminderAI({
+          invoiceNumber: extraction.invoiceNumber,
+          customerName: extraction.customerName || extraction.vendorName,
+          totalAmount: extraction.totalAmount,
+          dueDate: extraction.dueDate,
+        }, 'en');
+      } catch (reminderErr) {
+        console.warn('Payment reminder generation error:', reminderErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,
       filename,
       docType: 'invoice',
-      extraction: extraction,
+      extraction,
+      suggestedReminder,
     });
   } catch (error: unknown) {
     console.error('OCR API Error:', error);

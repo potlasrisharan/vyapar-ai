@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sarvamChat, ChatMessage } from '@/lib/services/sarvam';
+import { unifiedMultiModelChat, ChatMessage } from '@/lib/services/sarvam';
 import { rigidRagDatabase } from '@/lib/services';
 import { queryFinTraceZF, createSampleAuthenticatedLedger } from '@/lib/fintrace-zf';
 
@@ -288,21 +288,21 @@ export async function POST(req: NextRequest) {
     if (isOverdueAndWeeklyPlan) {
       const plan = rigidRagDatabase.getOverdueAndWeeklyPlan(lang);
 
-      if (process.env.SARVAM_CHAT_API_KEY || process.env.SARVAM_API_KEY) {
+      if (process.env.SARVAM_CHAT_API_KEY || process.env.SARVAM_API_KEY || process.env.GROQ_API_KEY) {
         try {
           const promptWithPlan = `${buildDynamicBusinessContext(context)}\n\n=== VERIFIED OVERDUE BREAKDOWN & ACTION PLAN ===\n${plan.content}\n================================================\nCRITICAL: Answer with this exact breakdown, action plan, and explicitly name the relied-on documents.`;
-          const reply = await sarvamChat(messages, promptWithPlan);
+          const aiRes = await unifiedMultiModelChat(messages, promptWithPlan);
           return NextResponse.json({
             role: 'assistant',
-            content: reply,
-            provider: 'Sarvam AI (sarvam-105b-conversations)',
+            content: aiRes.content,
+            provider: `${aiRes.provider} (${aiRes.model})`,
             evidenceIds: plan.evidenceIds,
             reliedDocuments: plan.reliedDocuments,
             totalOverdue: plan.totalOverdue,
             isGrounded: true,
           });
-        } catch (sarvamErr) {
-          console.warn('Sarvam Chat API call failed for overdue plan, using deterministic plan:', sarvamErr);
+        } catch (aiErr) {
+          console.warn('AI Chat call failed for overdue plan, using deterministic plan:', aiErr);
         }
       }
 
@@ -327,19 +327,19 @@ export async function POST(req: NextRequest) {
       dynamicContext += `\n\nSTRICT RAG GUARD: No verified records or uploaded invoices were found in the database matching this query. You MUST strictly reply: "This information is not present in the uploaded invoices or business records." Do not invent or estimate.`;
     }
 
-    // 5. Attempt Sarvam AI Indic LLM (using SARVAM_CHAT_API_KEY)
-    if (process.env.SARVAM_CHAT_API_KEY || process.env.SARVAM_API_KEY) {
+    // 5. Attempt Multi-Model AI (Sarvam 105B -> Groq 120B -> Groq 27B)
+    if (process.env.SARVAM_CHAT_API_KEY || process.env.SARVAM_API_KEY || process.env.GROQ_API_KEY) {
       try {
-        const reply = await sarvamChat(messages, dynamicContext);
+        const aiRes = await unifiedMultiModelChat(messages, dynamicContext);
         return NextResponse.json({
           role: 'assistant',
-          content: reply,
-          provider: 'Sarvam AI (sarvam-105b-conversations)',
+          content: aiRes.content,
+          provider: `${aiRes.provider} (${aiRes.model})`,
           evidenceIds: retrieval.matchedChunks.map((c) => c.chunk.id),
           isGrounded: retrieval.isGrounded,
         });
-      } catch (sarvamErr) {
-        console.warn('Sarvam Chat API call failed, using deterministic rigid RAG engine:', sarvamErr);
+      } catch (aiErr) {
+        console.warn('Multi-model AI Chat call failed, falling back to deterministic rigid RAG engine:', aiErr);
       }
     }
 

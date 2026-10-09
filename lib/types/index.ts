@@ -257,6 +257,7 @@ export interface BusinessData {
 
 export interface LocalState {
   language: Language;
+  theme?: "dark" | "light";
   insightStatuses: Record<string, InsightStatus>;
   actions: ActionItem[];
   uploadedDocuments: Document[];

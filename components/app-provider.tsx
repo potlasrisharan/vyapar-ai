@@ -4,7 +4,7 @@ import type { BusinessData, Insight, Language, LocalState, InsightStatus, Docume
 import { translate, type TranslationKey } from "@/lib/i18n";
 import { businessService, auditService, eventBus } from "@/lib/services";
 type Panel = {kind:"invoice"|"customer"|"vendor"|"product"|"document"|"evidence"|"action";id:string}|{kind:"actions"|"search"|"more"|"help"|"reset"|"createInvoice"|"createCustomer"|"createProduct"}|{kind:"recordPayment";invoiceId?:string};
-const initial:LocalState={language:"en",insightStatuses:{},actions:[],uploadedDocuments:[],conversations:[],customPayments:[],customInvoices:[],customCustomers:[],customVendors:[],customProducts:[]};
+const initial:LocalState={language:"en",theme:"dark",insightStatuses:{},actions:[],uploadedDocuments:[],conversations:[],customPayments:[],customInvoices:[],customCustomers:[],customVendors:[],customProducts:[]};
 const storageKey="vyaparai-demo-v1";
 interface AppContextValue {
   data:BusinessData|null;
@@ -12,6 +12,8 @@ interface AppContextValue {
   t:(key:TranslationKey,vars?:Record<string,string|number>)=>string;
   lang:Language;
   setLanguage:(lang:Language)=>void;
+  theme:"dark"|"light";
+  setTheme:(theme:"dark"|"light")=>void;
   panel:Panel|null;
   open:(p:Panel)=>void;
   close:()=>void;
@@ -38,7 +40,7 @@ export function AppProvider({children}:{children:ReactNode}){
  const [data,setData]=useState<BusinessData|null>(null);const [local,setLocal]=useState<LocalState>(initial);const [ready,setReady]=useState(false);const [panel,setPanel]=useState<Panel|null>(null);const [toast,setToast]=useState<TranslationKey|null>(null);const [demoState,setDemoState]=useState<AppContextValue["demoState"]>("normal");
  const reload=useCallback(()=>{setDemoState("normal");businessService.load().then(setData).catch(()=>setDemoState("error"));},[]);
  useEffect(()=>{let active=true;businessService.load().then(result=>{if(!active)return;setData(result);try{const raw=localStorage.getItem(storageKey);if(raw){const s=JSON.parse(raw) as Partial<LocalState>;if(["en","hi","hinglish"].includes(s.language??"")&&Array.isArray(s.actions)&&Array.isArray(s.uploadedDocuments)&&Array.isArray(s.conversations)&&s.insightStatuses&&typeof s.insightStatuses==="object")setLocal(s as LocalState);}}catch{/* A corrupt or unavailable store falls back to the original demo. */}setReady(true);}).catch(()=>setDemoState("error"));return()=>{active=false;};},[]);
- useEffect(()=>{if(ready)try{localStorage.setItem(storageKey,JSON.stringify(local));}catch{/* The app remains usable if storage is unavailable. */}document.documentElement.lang=local.language==="hi"?"hi":local.language==="hinglish"?"hi-Latn":"en";},[local,ready]);
+ useEffect(()=>{if(ready)try{localStorage.setItem(storageKey,JSON.stringify(local));}catch{/* The app remains usable if storage is unavailable. */}document.documentElement.lang=local.language==="hi"?"hi":local.language==="hinglish"?"hi-Latn":"en";const th=local.theme??"dark";if(th==="dark"){document.documentElement.classList.add("dark");document.documentElement.setAttribute("data-theme","dark");}else{document.documentElement.classList.remove("dark");document.documentElement.setAttribute("data-theme","light");}},[local,ready]);
  const t=(key:TranslationKey,vars?:Record<string,string|number>)=>translate(local.language,key,vars);
 
  const mergedData:BusinessData|null=useMemo(()=>{
@@ -86,11 +88,13 @@ export function AppProvider({children}:{children:ReactNode}){
  const value:AppContextValue={
   data:mergedData,local,t,lang:local.language,
   setLanguage:language=>setLocal(s=>({...s,language})),
+  theme:local.theme??"dark",
+  setTheme:theme=>setLocal(s=>({...s,theme})),
   panel,open:setPanel,close:()=>setPanel(null),
   notify:setToast,toast:toast?t(toast):null,clearToast:()=>setToast(null),
   status:id=>local.insightStatuses[id]??"open",
   setStatus:(id,status)=>{setLocal(s=>({...s,insightStatuses:{...s.insightStatuses,[id]:status}}));setToast(status==="handled"?"insightHandled":status==="dismissed"?"insightDismissed":"restored");},
-  createAction:(insight,note)=>{if(local.actions.some(a=>a.insightId===insight.id&&a.status==="open")){setToast("reminderExists");setPanel({kind:"actions"});return;}setLocal(s=>({...s,actions:[{id:crypto.randomUUID(),insightId:insight.id,kind:insight.action,status:"open",createdAt:new Date().toISOString(),note},...s.actions]}));setToast("actionCreated");setPanel({kind:"actions"});},
+  createAction:(insight,note)=>{if(local.actions.some(a=>a.insightId===insight.id&&a.status==="open")){setToast("reminderExists");setPanel({kind:"actions"});return;}setLocal(s=>({...s,actions:[{id:crypto.randomUUID(),insightId:insight.id,kind:insight.action,status:"open",createdAt:new Date().toISOString(),note,channel:"whatsapp",draftMessage:note,recipientName:typeof insight.summary==="object"?insight.summary[s.language]:undefined},...s.actions]}));setToast("actionCreated");setPanel({kind:"actions"});},
   completeAction:id=>{setLocal(s=>({...s,actions:s.actions.map(a=>a.id===id?{...a,status:"completed"}:a)}));setToast("actionComplete");},
   addDocument:doc=>setLocal(s=>({...s,uploadedDocuments:[doc,...s.uploadedDocuments]})),
   saveConversation:c=>setLocal(s=>({...s,conversations:[c,...s.conversations.filter(v=>v.id!==c.id)]})),

@@ -29,7 +29,7 @@ interface ExtractedDocData {
   items?: Array<{ description?: string; quantity?: number; unitPrice?: number; total?: number }>;
 }
 export function DocumentsPage(){
-  const {data,t,lang,local,addDocument,createInvoice,open,notify}=useApp();
+  const {data,t,lang,local,addDocument,createInvoice,createAction,open,notify}=useApp();
   const [query,setQuery]=useState("");
   const [filter,setFilter]=useState("all");
   const [stage,setStage]=useState(-1);
@@ -68,6 +68,7 @@ export function DocumentsPage(){
       setStage(1);
       let extData: ExtractedDocData | null = null;
       let docType: Document["type"] = "invoice";
+      let suggestedReminder: { draftMessage?: string } | undefined = undefined;
 
       if(isRealFile){
         const fd=new FormData();
@@ -76,6 +77,7 @@ export function DocumentsPage(){
         if(res.ok){
           const json=await res.json();
           extData=json.extraction;
+          suggestedReminder=json.suggestedReminder;
           if(json.docType==="profile"||extData?.isBusinessProfile)docType="profile";
         }
       }else if(typeof fileOrName==="string"&&fileOrName.toLowerCase().includes("profile")){
@@ -98,6 +100,7 @@ export function DocumentsPage(){
         if(res.ok){
           const json=await res.json();
           extData=json.extraction;
+          suggestedReminder=json.suggestedReminder;
         }
       }
 
@@ -135,7 +138,7 @@ export function DocumentsPage(){
         }
       });
 
-      if(docType!=="profile"){
+      if(docType!=="profile" && extData){
         createInvoice({
           id:invNumber,
           customerId:"CUS-1016",
@@ -170,6 +173,31 @@ export function DocumentsPage(){
                 },
               ],
         });
+
+        const customerName = extData.customerName || extData.vendorName || "Customer";
+        const totalAmountStr = `₹${Number(extData.totalAmount || 0).toLocaleString("en-IN")}`;
+        const reminderDraft = suggestedReminder?.draftMessage ||
+          `Namaste ${customerName}, Sharma Electronics (Kanpur) reminder for invoice ${invNumber} (${totalAmountStr}). Kindly settle at your earliest.`;
+
+        createAction(
+          {
+            id: `ACT-${invNumber}`,
+            category: "financial",
+            priority: "high",
+            title: {
+              en: `Collect ${totalAmountStr} from ${customerName}`,
+              hi: `${customerName} से ${totalAmountStr} वसूलें`,
+              hinglish: `${customerName} se ${totalAmountStr} collect karein`
+            },
+            summary: { en: `Invoice ${invNumber}`, hi: `बिल ${invNumber}`, hinglish: `Bill ${invNumber}` },
+            why: { en: "Overdue payment from uploaded invoice", hi: "अपलोड किए गए बिल का बकाया", hinglish: "Uploaded bill ka bakaaya" },
+            recommendation: { en: `Send reminder to ${customerName}`, hi: `${customerName} को तगादा भेजें`, hinglish: `${customerName} ko reminder bhejein` },
+            evidenceIds: ["EVD-INV-1023"],
+            action: "followup",
+            targetId: invNumber
+          },
+          reminderDraft
+        );
       }
 
       setStage(4);
@@ -279,7 +307,68 @@ export function DocumentsPage(){
         confidenceScore:0.99,
         extractedData:doc.extractedData
       });
+
+      if (doc.type === "invoice" && doc.extractedData.totalAmount) {
+        createInvoice({
+          id: doc.extractedData.invoiceNumber,
+          customerId: doc.extractedData.invoiceNumber === "INV-1023" ? "CUS-1001" : "CUS-1002",
+          date: doc.extractedData.date,
+          dueDate: doc.extractedData.dueDate,
+          subtotal: doc.extractedData.totalAmount - (doc.extractedData.taxAmount || 0),
+          tax: doc.extractedData.taxAmount || 0,
+          total: doc.extractedData.totalAmount,
+          status: doc.extractedData.paymentStatus as "overdue" | "paid",
+          items: doc.extractedData.items.map((it, idx) => ({
+            productId: `PRD-${idx + 1}`,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            gross: it.total,
+            subtotal: it.total,
+            tax: 0,
+          })),
+        });
+      }
     });
+
+    createAction(
+      {
+        id: "ACT-INV-1023",
+        category: "financial",
+        priority: "high",
+        title: {
+          en: "Collect ₹35,000 from ABC Traders",
+          hi: "ABC Traders से ₹35,000 का भुगतान प्राप्त करें",
+          hinglish: "ABC Traders se ₹35,000 collect karein",
+        },
+        summary: { en: "Invoice INV-1023", hi: "बिल INV-1023", hinglish: "Bill INV-1023" },
+        why: { en: "12 days overdue", hi: "12 दिन से बकाया", hinglish: "12 din se overdue" },
+        recommendation: { en: "Send WhatsApp reminder to ABC Traders", hi: "WhatsApp रिमाइंडर भेजें", hinglish: "WhatsApp reminder bhejein" },
+        evidenceIds: ["EVD-INV-1023"],
+        action: "followup",
+        targetId: "INV-1023",
+      },
+      "Dear ABC Traders, reminder from Sharma Electronics (Kanpur) regarding overdue invoice INV-1023 for ₹35,000. Kindly settle via UPI/Bank at your earliest. Thank you!"
+    );
+
+    createAction(
+      {
+        id: "ACT-INV-1042",
+        category: "financial",
+        priority: "high",
+        title: {
+          en: "Collect ₹48,000 from Rahul Traders",
+          hi: "Rahul Traders से ₹48,000 का भुगतान प्राप्त करें",
+          hinglish: "Rahul Traders se ₹48,000 collect karein",
+        },
+        summary: { en: "Invoice INV-1042", hi: "बिल INV-1042", hinglish: "Bill INV-1042" },
+        why: { en: "14 days overdue", hi: "14 दिन से बकाया", hinglish: "14 din se overdue" },
+        recommendation: { en: "Send WhatsApp reminder to Rahul Traders", hi: "WhatsApp रिमाइंडर भेजें", hinglish: "WhatsApp reminder bhejein" },
+        evidenceIds: ["EVD-INV-1023"],
+        action: "followup",
+        targetId: "INV-1042",
+      },
+      "Namaste Rahul Traders, Sharma Electronics reminder regarding invoice INV-1042 for ₹48,000. Kindly arrange payment. Thank you!"
+    );
 
     setFileName("Month of Invoices, Bills & Business Profile (5 Files)");
     setStage(4);

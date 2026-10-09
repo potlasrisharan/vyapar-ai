@@ -187,4 +187,34 @@ test("copilot synthesizes overdue payments, weekly action plan, and explicitly n
   assert.ok(planHinglish.content.includes("Documents Relied On"));
 });
 
+import { unifiedExtractInvoice, generatePaymentReminderAI } from "../lib/services/sarvam";
+
+test("multi-model invoice extraction and automated payment reminder generation succeed", async () => {
+  const sampleDoc = `TAX INVOICE
+Invoice No: INV-TEST-8899
+Date: 2026-09-18
+Due Date: 2026-09-28
+Billed To: Gupta Electricals Kanpur
+GSTIN: 09AAACG1234M1Z5
+Item: Smart Ceiling Fans 48-inch (Qty: 5 @ 3,500)
+Total Amount: ₹17,500
+Tax: ₹3,150`;
+
+  const extraction = await unifiedExtractInvoice(sampleDoc);
+  assert.ok(extraction.totalAmount > 0);
+  assert.ok(extraction.invoiceNumber.includes("8899") || extraction.invoiceNumber.startsWith("INV-"));
+
+  const reminder = await generatePaymentReminderAI({
+    invoiceNumber: "INV-TEST-8899",
+    customerName: "Gupta Electricals",
+    totalAmount: 17500,
+    dueDate: "2026-09-28"
+  }, "en");
+
+  assert.equal(reminder.channel, "whatsapp");
+  assert.ok(reminder.draftMessage.length > 20);
+  assert.ok(reminder.draftMessage.includes("INV-TEST-8899") || reminder.draftMessage.includes("Sharma Electronics"));
+  assert.ok(reminder.note.includes("Gupta Electricals"));
+});
+
 

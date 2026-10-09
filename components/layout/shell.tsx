@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CircleHelp, CreditCard, FileText, LayoutGrid, Users, Truck, Package, Receipt, Lightbulb, MessageSquare, Settings, Search, ChevronDown, ArrowUpRight, MoreHorizontal, X, Building2, CheckCircle2 } from "lucide-react";
+import { Bell, CircleHelp, CreditCard, FileText, LayoutGrid, Users, Truck, Package, Receipt, Lightbulb, MessageSquare, Settings, Search, ChevronDown, ArrowUpRight, MoreHorizontal, X, Building2, CheckCircle2, LayoutDashboard, Moon, Sun } from "lucide-react";
 import { useApp } from "@/components/app-provider";
 import { languages, type TranslationKey } from "@/lib/i18n";
 import type { Route, Language } from "@/lib/types";
@@ -80,10 +80,8 @@ export function LanguageSwitcher() {
 export function Brand() {
   return (
     <span className="brand">
-      <span className="brand-mark" aria-hidden="true">
-        <span />
-        <span />
-        <span />
+      <span className="brand-icon-box" aria-hidden="true">
+        <LayoutDashboard size={20} />
       </span>
       <span className="brand-name">
         Vyapar<span className="brand-ai">AI</span>
@@ -92,8 +90,33 @@ export function Brand() {
   );
 }
 
+export function ThemeToggle() {
+  const { theme, setTheme } = useApp();
+  const isDark = theme === "dark";
+
+  return (
+    <div className="theme-toggle-row">
+      <span className="theme-toggle-label">
+        {isDark ? <Moon size={14} className="text-brand-purple" /> : <Sun size={14} className="text-amber-500" />}
+        <span>{isDark ? "Dark" : "Light"}</span>
+      </span>
+      <button
+        id="theme-toggle"
+        type="button"
+        role="switch"
+        aria-checked={isDark}
+        aria-label="Toggle dark/light mode"
+        onClick={() => setTheme(isDark ? "light" : "dark")}
+        className={`theme-toggle-switch ${isDark ? "dark-active" : ""}`}
+      >
+        <span className={`theme-toggle-thumb ${isDark ? "dark-active" : ""}`} />
+      </button>
+    </div>
+  );
+}
+
 export function Shell({ children }: { children: ReactNode }) {
-  const { t, open, toast, clearToast, local } = useApp();
+  const { t, open, toast, clearToast, local, theme, setTheme } = useApp();
   const path = usePathname();
   const current = (path.split("/")[1] || "overview") as Route;
   const count = local.actions.filter((a) => a.status === "open").length;
@@ -147,6 +170,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
 
         <div className="sidebar-bottom">
+          <ThemeToggle />
           <div className="sidebar-tip">
             <span className="tip-icon">
               <Lightbulb size={16} />
@@ -216,6 +240,14 @@ export function Shell({ children }: { children: ReactNode }) {
               <IconButton icon={Search} label={t("search")} onClick={() => open({ kind: "search" })} />
             </span>
             <LanguageSwitcher />
+            <button
+              className="icon-button"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             <span className="header-divider" />
             <div className="notification-button">
               <button
