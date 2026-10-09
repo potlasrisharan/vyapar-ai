@@ -10,12 +10,12 @@ $$\text{UNDERSTAND} \longrightarrow \text{DETECT} \longrightarrow \text{PRIORITI
 ---
 
 ## 🌐 Live Production & Repository Links
-- **Production URL:** [https://main.d1ab5s5n2wzi84.amplifyapp.com](https://main.d1ab5s5n2wzi84.amplifyapp.com)
-- **AWS Infrastructure:** AWS Amplify + CloudFront Edge CDN + S3 Storage
+- **Production URL:** [https://main.d1c1qib3o07xy9.amplifyapp.com](https://main.d1c1qib3o07xy9.amplifyapp.com)
+- **AWS Infrastructure:** AWS Amplify (App ID: `d1c1qib3o07xy9`) + CloudFront Edge CDN + S3 Storage
 - **AWS Region:** `ap-southeast-2` (Sydney)
 - **AWS Account ID:** `496178998121` (Profile: `avinya`)
-- **GitHub Repository (Private):** [https://github.com/potlasrisharan/vyaparai](https://github.com/potlasrisharan/vyaparai)
-- **Branches:** `main` (Production), `dev` (Development)
+- **GitHub Repository (Public):** [https://github.com/potlasrisharan/vyapar-ai](https://github.com/potlasrisharan/vyapar-ai)
+- **Branches:** `main` (Production Auto-Build), `dev` (Development)
 
 ---
 
